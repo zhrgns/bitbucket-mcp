@@ -12,12 +12,14 @@ Agent skill for **working on this repository**. End-user docs: `README.md`. Dev 
 
 ## Two audiences (do not mix)
 
-| Audience | Where |
-| -------- | ----- |
-| End users | `README.md`, `templates/`, `skills/` |
-| Maintainers | `CONTRIBUTING.md`, `.cursor/skills/bitbucket-mcp-dev/`, `src/` |
+| Audience    | Where                                      |
+| ----------- | ------------------------------------------ |
+| End users   | `README.md`, `templates/`, `skills/`       |
+| Maintainers | `CONTRIBUTING.md`, `bitbucket-mcp-dev`, `src/` |
 
 README = install + tools + downloadable skills only. No yarn/build/dev sections.
+
+This skill is repo-only (not in npm `files`). Rest of Cursor config stays local.
 
 ## Product scope
 
@@ -49,15 +51,13 @@ Optional `~/.config/bitbucket-mcp/config.json` — reviewer overrides only. Repo
 
 Users copy into `.cursor/skills/`:
 
-| Skill | Purpose |
-| ----- | ------- |
-| `bitbucket-pr` | Open PR |
-| `bitbucket-pr-review` | Comment fix + resolve loop |
-| `bitbucket-babysit` | Full lifecycle until merge-ready |
+| Skill                 | Purpose                          |
+| --------------------- | -------------------------------- |
+| `bitbucket-pr`        | Open PR                          |
+| `bitbucket-pr-review` | Comment fix + resolve loop       |
+| `bitbucket-babysit`   | Full lifecycle until merge-ready |
 
 Do **not** remove `skills/` from `package.json` `files`. No `bitbucket-pre-pr` (rejected — empty value).
-
-This file (`.cursor/skills/bitbucket-mcp-dev/`) is **maintainer-only** — not copied by users.
 
 ## Code layout
 
@@ -98,6 +98,6 @@ src/hooks/      watch-hook.ts — npx via templates/hooks.json
 - Pipeline / build status
 - `bitbucket-pre-pr` — dropped
 
-## Gitignore
+## Never commit
 
-Never commit: credentials, local `config.json` with secrets, `node_modules/`, `dist/` (built on install). `.cursor/skills/bitbucket-mcp-dev/` **is** committed.
+Credentials, local `config.json` with secrets, `node_modules/`, `dist/`.

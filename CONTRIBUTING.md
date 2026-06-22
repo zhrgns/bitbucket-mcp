@@ -2,6 +2,8 @@
 
 Internal notes for developing **bitbucket-mcp**. End-user setup is in [README.md](README.md).
 
+Maintainer agent context: load the `bitbucket-mcp-dev` skill when editing this repo. It ships in git only (not in the npm package).
+
 ## Scope
 
 PR workflow tools — not a full Bitbucket API mirror. Shippable agent skills live in `skills/` for users to copy into their projects.
@@ -19,7 +21,7 @@ src/
   mcp/          tool parsers, registration, server
   hooks/        Cursor stop hook entry
 templates/      mcp.json + hooks.json snippets
-skills/         downloadable agent skills (copy to .cursor/skills/)
+skills/         shippable agent skills
 ```
 
 ## Commands

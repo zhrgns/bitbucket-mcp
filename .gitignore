@@ -7,3 +7,7 @@ pr-watch.json
 .env
 .env.*
 !.env.example
+.cursor/*
+!.cursor/skills/
+!.cursor/skills/bitbucket-mcp-dev/
+!.cursor/skills/bitbucket-mcp-dev/**
