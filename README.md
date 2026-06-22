@@ -1,129 +1,98 @@
 # bitbucket-mcp
 
-Cursor MCP server for **Bitbucket Cloud** — create/list PRs, check approvals, optional PR approval watch via Cursor stop hook.
+Cursor MCP server for **Bitbucket Cloud** — PR create/list, review comments, approval checks, and lifecycle watch via Cursor stop hook.
 
-## Features
+## Install
 
-- Create PR with automatic reviewer resolution (effective defaults + author + extras)
-- List/filter PRs by source branch and state
-- Get approval status by PR id or source branch
-- Optional approval watch loop (Cursor `stop` hook + Jira MCP)
-
-## Minimal setup
-
-```bash
-git clone https://github.com/YOUR_ORG/bitbucket-mcp.git
-cd bitbucket-mcp
-npm install
-npm run init-config
-# edit ~/.config/bitbucket-mcp/config.json
-npm link   # optional: global bins for watch hook
-```
-
-### 1. Config
-
-`~/.config/bitbucket-mcp/config.json`:
-
-```json
-{
-  "repository": {
-    "workspace": "your-workspace",
-    "slug": "your-repo"
-  },
-  "reviewers": {
-    "useEffectiveDefaultReviewers": true,
-    "includeAuthorAsReviewer": true,
-    "extraUsernames": []
-  }
-}
-```
-
-Override path: `BITBUCKET_MCP_CONFIG=/path/to/config.json`
-
-### 2. Credentials
-
-Atlassian API token with repository read/write. Set via **one** of:
-
-| Method | Variables |
-| ------ | --------- |
-| `mcp.json` env (recommended) | `BITBUCKET_USERNAME`, `BITBUCKET_APP_PASSWORD` |
-| Shell profile | same vars in `~/.zshrc` / `~/.bashrc` |
-
-Create token: Atlassian → Account settings → Security → Create and manage API tokens.
-
-### 3. Cursor MCP
-
-Merge into `~/.cursor/mcp.json`:
+Add to `~/.cursor/mcp.json` and restart Cursor:
 
 ```json
 {
   "mcpServers": {
     "bitbucket": {
-      "command": "node",
-      "args": ["/absolute/path/to/bitbucket-mcp/dist/index.js"],
+      "command": "npx",
+      "args": ["-y", "@zhrgns/bitbucket-mcp"],
       "env": {
         "BITBUCKET_USERNAME": "you@example.com",
-        "BITBUCKET_APP_PASSWORD": "your-token"
+        "BITBUCKET_TOKEN": "your-api-token",
+        "BITBUCKET_WORKSPACE": "your-workspace",
+        "BITBUCKET_REPO_SLUG": "your-repo"
       }
     }
   }
 }
 ```
 
-Restart Cursor. MCP panel should show **bitbucket** green.
+Full snippet: [`templates/mcp.json`](templates/mcp.json).
 
-### 4. Approval watch hook (optional)
+Not on npm yet? Replace args with:
 
-```bash
-npm link
+```json
+"args": ["-y", "github:zhrgns/bitbucket-mcp"]
 ```
 
-Merge `examples/hooks.json` into `~/.cursor/hooks.json`. Requires `bitbucket-mcp-watch-hook` on PATH.
+API token: Atlassian account → Security → API tokens (repository read/write).
 
-## Agent skill
+> Credentials and repo identity live in `mcp.json` env. Never commit them.
 
-Copy to your project so agents auto-load PR workflow:
+### Optional: reviewer config file
+
+Default reviewers work out of the box. For extra usernames, add `~/.config/bitbucket-mcp/config.json` — [`templates/config.json`](templates/config.json).
+
+### Optional: stop hook
+
+Merge [`templates/hooks.json`](templates/hooks.json) into `~/.cursor/hooks.json` for automated PR watch loops.
+
+### Skills (download)
+
+Ready-made agent skills — copy into your project or `~/.cursor/skills/`:
+
+| Skill | Use case |
+| ----- | -------- |
+| [`bitbucket-pr`](skills/bitbucket-pr/SKILL.md) | Open PR |
+| [`bitbucket-pr-review`](skills/bitbucket-pr-review/SKILL.md) | Fix & resolve review comments |
+| [`bitbucket-babysit`](skills/bitbucket-babysit/SKILL.md) | Full lifecycle until merge-ready |
 
 ```bash
-cp -r skills/bitbucket-pr /path/to/your-repo/.cursor/skills/
+cp -r skills/bitbucket-babysit ~/.cursor/skills/
+# or per project: cp -r skills/bitbucket-pr .cursor/skills/
 ```
 
-Or install globally: `~/.cursor/skills/bitbucket-pr/`
+From GitHub without clone: [skills/](https://github.com/zhrgns/bitbucket-mcp/tree/main/skills).
 
 ## MCP tools
 
-| Tool | Description |
-| ---- | ----------- |
-| `create_pull_request` | Create PR |
-| `list_pull_requests` | List PRs (filter by source/state) |
-| `get_pull_request_approvals` | Approval count + approvers |
-| `start_pr_approval_watch` | Start periodic approval check |
-| `schedule_pr_approval_recheck` | Defer next check |
-| `clear_pr_approval_watch` | Stop watch |
+| Tool                           | Description                         |
+| ------------------------------ | ----------------------------------- |
+| `create_pull_request`          | Create PR with auto reviewers       |
+| `list_pull_requests`           | Filter by `source`, `state`         |
+| `get_pull_request`             | PR details + state                  |
+| `get_pull_request_approvals`   | Approval count + approvers          |
+| `get_pull_request_comments`    | Unresolved comment threads          |
+| `resolve_pull_request_comment` | Resolve thread after fix            |
+| `start_pr_approval_watch`      | Approval-only polling               |
+| `start_pr_review_watch`        | Review-comment polling              |
+| `start_pr_babysit_watch`       | Review + approval until merge-ready |
+| `schedule_pr_approval_recheck` | Defer next hook tick                |
+| `clear_pr_approval_watch`      | Stop any active watch               |
 
 ## Environment variables
 
-| Variable | Purpose |
-| -------- | ------- |
-| `BITBUCKET_USERNAME` | Atlassian account email |
-| `BITBUCKET_APP_PASSWORD` | API token |
-| `BITBUCKET_TOKEN` | Alias for app password |
-| `BITBUCKET_MCP_CONFIG` | Custom config file path |
-| `BITBUCKET_MCP_WATCH_FILE` | Custom watch state path |
+| Variable                   | Required | Purpose                 |
+| -------------------------- | -------- | ----------------------- |
+| `BITBUCKET_USERNAME`       | yes      | Atlassian email         |
+| `BITBUCKET_TOKEN`          | yes      | API token               |
+| `BITBUCKET_WORKSPACE`      | yes\*    | Workspace slug          |
+| `BITBUCKET_REPO_SLUG`      | yes\*    | Repository slug         |
+| `BITBUCKET_MCP_CONFIG`     | no       | Custom config path      |
+| `BITBUCKET_MCP_WATCH_FILE` | no       | Custom watch state path |
 
-## Development
-
-```bash
-npm run build
-npm run typecheck
-node dist/index.js   # stdio MCP — Cursor launches this
-```
+\*Or config file `repository.workspace` / `repository.slug`.
 
 ## Security
 
-- Credentials never stored in repo or MCP config files committed to git
-- API calls scoped to configured repository + `/user` + `/users/` endpoints
-- Prefer `mcp.json` env over shell profile for token isolation
+- Credentials never stored in repo or committed config
+- API calls scoped to configured repository + `/user` + `/users/`
 
 ## License
 
