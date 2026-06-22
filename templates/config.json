@@ -1,0 +1,11 @@
+{
+  "repository": {
+    "workspace": "your-workspace",
+    "slug": "your-repo"
+  },
+  "reviewers": {
+    "useEffectiveDefaultReviewers": true,
+    "includeAuthorAsReviewer": true,
+    "extraUsernames": []
+  }
+}

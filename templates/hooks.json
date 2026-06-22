@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "hooks": {
+    "stop": [
+      {
+        "command": "npx",
+        "args": ["-y", "--package", "bitbucket-mcp", "bitbucket-mcp-watch-hook"]
+      }
+    ]
+  }
+}

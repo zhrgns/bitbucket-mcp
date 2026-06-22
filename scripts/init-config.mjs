@@ -7,7 +7,7 @@ const configDir = path.join(os.homedir(), '.config/bitbucket-mcp');
 const configPath = path.join(configDir, 'config.json');
 const examplePath = path.join(
   path.dirname(fileURLToPath(import.meta.url)),
-  '../examples/config.json'
+  '../templates/config.json'
 );
 
 if (fs.existsSync(configPath)) {

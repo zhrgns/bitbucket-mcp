@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "bitbucket": {
+      "command": "npx",
+      "args": ["-y", "bitbucket-mcp"],
+      "env": {
+        "BITBUCKET_USERNAME": "you@example.com",
+        "BITBUCKET_TOKEN": "your-api-token",
+        "BITBUCKET_WORKSPACE": "your-workspace",
+        "BITBUCKET_REPO_SLUG": "your-repo"
+      }
+    }
+  }
+}

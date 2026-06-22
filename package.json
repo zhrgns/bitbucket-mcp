@@ -4,9 +4,10 @@
   "description": "Cursor MCP server for Bitbucket Cloud — PR create/list, approvals, optional approval watch hook",
   "type": "module",
   "license": "MIT",
+  "packageManager": "yarn@1.22.22",
   "repository": {
     "type": "git",
-    "url": "https://github.com/YOUR_ORG/bitbucket-mcp.git"
+    "url": "https://github.com/zhrgns/bitbucket-mcp.git"
   },
   "keywords": [
     "mcp",
@@ -17,18 +18,19 @@
   ],
   "bin": {
     "bitbucket-mcp": "./dist/index.js",
-    "bitbucket-mcp-watch-hook": "./dist/watch-hook.js"
+    "bitbucket-mcp-watch-hook": "./dist/hooks/watch-hook.js"
   },
   "files": [
     "dist",
-    "examples",
+    "templates",
     "skills",
+    "scripts",
     "README.md",
     "LICENSE"
   ],
   "scripts": {
     "build": "tsc",
-    "prepare": "npm run build",
+    "prepare": "yarn build",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
     "init-config": "node scripts/init-config.mjs"
