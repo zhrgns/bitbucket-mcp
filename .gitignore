@@ -3,4 +3,7 @@ dist/
 *.log
 .DS_Store
 pr-watch.json
-config.json
+/config.json
+.env
+.env.*
+!.env.example
