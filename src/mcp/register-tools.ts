@@ -1,0 +1,245 @@
+import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import {
+  getPullRequestComments,
+  resolvePullRequestComment,
+} from '../bitbucket/comments.js';
+import {
+  createPullRequest,
+  getPullRequestApprovals,
+  getPullRequestById,
+  listPullRequests,
+} from '../bitbucket/pull-requests.js';
+import { loadConfig } from '../config/load.js';
+import {
+  clearWatch,
+  loadWatch,
+  scheduleNextCheck,
+  startLifecycleWatch,
+} from '../watch/store.js';
+import {
+  parseCreatePullRequest,
+  parseGetApprovals,
+  parseGetComments,
+  parseListPullRequests,
+  parsePrId,
+  parseResolveComment,
+  parseStartLifecycleWatch,
+  parseToolArgs,
+} from './parsers.js';
+import { jsonResult } from './result.js';
+
+export const registerTools = (server: McpServer): void => {
+  server.registerTool(
+    'create_pull_request',
+    {
+      description:
+        'Create a Bitbucket Cloud pull request for the configured repository. Args: source, destination, title, description?, closeSourceBranch?. Reviewers: effective default reviewers + authenticated author + optional extraUsernames from config.',
+    },
+    async (rawArgs?: unknown) => {
+      const config = loadConfig();
+      const input = parseCreatePullRequest(parseToolArgs(rawArgs));
+
+      const pr = await createPullRequest(config, input);
+      const url = pr.links?.html?.href ?? '';
+
+      return jsonResult({
+        id: pr.id,
+        title: pr.title,
+        state: pr.state,
+        url,
+        source: input.source,
+        destination: input.destination,
+        reviewers: (pr.reviewers ?? []).map((r) => ({
+          uuid: r.uuid,
+          display_name: r.display_name ?? r.nickname,
+        })),
+      });
+    }
+  );
+
+  server.registerTool(
+    'list_pull_requests',
+    {
+      description:
+        'List pull requests for the configured repository. Args: source?, state? (OPEN|MERGED|DECLINED|SUPERSEDED, default OPEN). Use to detect duplicate open PRs before create.',
+    },
+    async (rawArgs?: unknown) => {
+      const config = loadConfig();
+      const input = parseListPullRequests(parseToolArgs(rawArgs));
+      const data = await listPullRequests(config, input);
+
+      const items = (data.values ?? []).map((pr) => ({
+        id: pr.id,
+        title: pr.title,
+        state: pr.state,
+        url: pr.links?.html?.href,
+        source: pr.source?.branch?.name,
+        destination: pr.destination?.branch?.name,
+      }));
+
+      return jsonResult(items);
+    }
+  );
+
+  server.registerTool(
+    'get_pull_request',
+    {
+      description:
+        'Get pull request details by prId. Use to check state (OPEN/MERGED) during review watch.',
+    },
+    async (rawArgs?: unknown) => {
+      const config = loadConfig();
+      const { prId } = parsePrId(parseToolArgs(rawArgs));
+      const pr = await getPullRequestById(config, prId);
+
+      return jsonResult({
+        id: pr.id,
+        title: pr.title,
+        state: pr.state,
+        url: pr.links?.html?.href,
+        source: pr.source?.branch?.name,
+        destination: pr.destination?.branch?.name,
+      });
+    }
+  );
+
+  server.registerTool(
+    'get_pull_request_approvals',
+    {
+      description:
+        'Get approval count and approvers. Args: prId? or source? (one required). Source finds first open PR for that branch.',
+    },
+    async (rawArgs?: unknown) => {
+      const config = loadConfig();
+      const input = parseGetApprovals(parseToolArgs(rawArgs));
+      const status = await getPullRequestApprovals(config, input);
+      return jsonResult(status);
+    }
+  );
+
+  server.registerTool(
+    'get_pull_request_comments',
+    {
+      description:
+        'List PR comment threads. Args: prId, unresolvedOnly? (default true). Returns unresolvedCount and thread roots with path/line for inline comments.',
+    },
+    async (rawArgs?: unknown) => {
+      const config = loadConfig();
+      const input = parseGetComments(parseToolArgs(rawArgs));
+      const summary = await getPullRequestComments(
+        config,
+        input.prId,
+        input.unresolvedOnly
+      );
+      return jsonResult(summary);
+    }
+  );
+
+  server.registerTool(
+    'resolve_pull_request_comment',
+    {
+      description:
+        'Resolve a PR comment thread. Args: prId, commentId (thread root id). Call after the fix is pushed.',
+    },
+    async (rawArgs?: unknown) => {
+      const config = loadConfig();
+      const input = parseResolveComment(parseToolArgs(rawArgs));
+      const result = await resolvePullRequestComment(
+        config,
+        input.prId,
+        input.commentId
+      );
+      return jsonResult(result);
+    }
+  );
+
+  server.registerTool(
+    'start_pr_approval_watch',
+    {
+      description:
+        'Start approval-only polling (default 10 min). Args: prId, jiraKey, prUrl, sourceBranch, intervalMinutes?, jiraTransitionName?. Requires stop hook.',
+    },
+    async (rawArgs?: unknown) => {
+      const input = parseStartLifecycleWatch(parseToolArgs(rawArgs));
+      if (!input.jiraKey) {
+        throw new Error('jiraKey is required for approval watch');
+      }
+      const watch = startLifecycleWatch('approval', input);
+      return jsonResult(watchPayload(watch));
+    }
+  );
+
+  server.registerTool(
+    'start_pr_review_watch',
+    {
+      description:
+        'Start review-comment polling until PR is merged/declined. Args: prId, prUrl, sourceBranch, intervalMinutes?. No Jira required.',
+    },
+    async (rawArgs?: unknown) => {
+      const input = parseStartLifecycleWatch(parseToolArgs(rawArgs));
+      const watch = startLifecycleWatch('review', input);
+      return jsonResult(watchPayload(watch));
+    }
+  );
+
+  server.registerTool(
+    'start_pr_babysit_watch',
+    {
+      description:
+        'Start combined review + approval watch until merge-ready. Args: prId, prUrl, sourceBranch, jiraKey, intervalMinutes?, jiraTransitionName?.',
+    },
+    async (rawArgs?: unknown) => {
+      const input = parseStartLifecycleWatch(parseToolArgs(rawArgs));
+      if (!input.jiraKey) {
+        throw new Error('jiraKey is required for babysit watch');
+      }
+      const watch = startLifecycleWatch('babysit', input);
+      return jsonResult(watchPayload(watch));
+    }
+  );
+
+  server.registerTool(
+    'schedule_pr_approval_recheck',
+    {
+      description:
+        'Defer the next lifecycle watch check by one interval. Works for approval, review, and babysit watches.',
+    },
+    async () => {
+      const watch = loadWatch();
+      if (!watch) {
+        throw new Error('No active PR watch');
+      }
+      const updated = scheduleNextCheck(watch);
+      return jsonResult({
+        active: updated.active,
+        mode: updated.mode,
+        prId: updated.prId,
+        nextCheckAt: new Date(updated.nextCheckAt).toISOString(),
+        intervalMinutes: updated.intervalMinutes,
+      });
+    }
+  );
+
+  server.registerTool(
+    'clear_pr_approval_watch',
+    {
+      description:
+        'Stop any active PR lifecycle watch (approval, review, or babysit).',
+    },
+    async () => {
+      clearWatch();
+      return jsonResult({ active: false });
+    }
+  );
+};
+
+const watchPayload = (watch: ReturnType<typeof startLifecycleWatch>) => ({
+  active: watch.active,
+  mode: watch.mode,
+  prId: watch.prId,
+  prUrl: watch.prUrl,
+  intervalMinutes: watch.intervalMinutes,
+  jiraKey: watch.jiraKey,
+  jiraTransitionName: watch.jiraTransitionName,
+  message: `Watch started (${watch.mode}). Stop hook re-prompts each interval.`,
+});
