@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "hooks": {
+    "stop": [
+      {
+        "command": "bitbucket-mcp-watch-hook",
+        "timeout": 660,
+        "loop_limit": 200
+      }
+    ]
+  }
+}

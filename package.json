@@ -1,0 +1,46 @@
+{
+  "name": "bitbucket-mcp",
+  "version": "1.0.0",
+  "description": "Cursor MCP server for Bitbucket Cloud — PR create/list, approvals, optional approval watch hook",
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/YOUR_ORG/bitbucket-mcp.git"
+  },
+  "keywords": [
+    "mcp",
+    "bitbucket",
+    "cursor",
+    "pull-request",
+    "model-context-protocol"
+  ],
+  "bin": {
+    "bitbucket-mcp": "./dist/index.js",
+    "bitbucket-mcp-watch-hook": "./dist/watch-hook.js"
+  },
+  "files": [
+    "dist",
+    "examples",
+    "skills",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "prepare": "npm run build",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "init-config": "node scripts/init-config.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.29.0"
+  },
+  "devDependencies": {
+    "@types/node": "22.15.3",
+    "typescript": "5.8.3"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
