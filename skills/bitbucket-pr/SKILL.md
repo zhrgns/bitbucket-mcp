@@ -11,10 +11,10 @@ Use **bitbucket-mcp** tools only for Bitbucket API — never `curl` or shell API
 
 ## Prerequisites
 
-- `bitbucket-mcp` installed and green in Cursor MCP panel
-- `~/.config/bitbucket-mcp/config.json` with `repository.workspace` and `repository.slug`
-- Credentials: `BITBUCKET_USERNAME` + `BITBUCKET_APP_PASSWORD` (env or `mcp.json` env block)
-- Optional: `bitbucket-mcp-watch-hook` in `~/.cursor/hooks.json` for approval polling
+- `bitbucket-mcp` green in Cursor MCP panel (`mcp.json` — see repo README)
+- `BITBUCKET_WORKSPACE` + `BITBUCKET_REPO_SLUG` in `mcp.json` env
+- `BITBUCKET_USERNAME` + `BITBUCKET_TOKEN` in `mcp.json` env
+- Optional: stop hook from `templates/hooks.json` for approval polling
 
 ## Open PR workflow
 
@@ -48,11 +48,11 @@ If open PR exists → reuse it; skip create.
 | `description` | Summary + test plan (markdown) |
 | `closeSourceBranch` | `false` |
 
-Reviewers resolve automatically from Bitbucket effective defaults + author + `extraUsernames` in config.
+Reviewers resolve automatically from Bitbucket effective defaults + author + optional config.
 
 ### 4. Approval watch (optional)
 
-Requires stop hook. Pair with Jira/Atlassian MCP.
+Requires stop hook. Pair with Jira/Atlassian MCP. For full lifecycle use **bitbucket-babysit**.
 
 1. `get_pull_request_approvals` — if `approvalCount >= 1`, skip watch
 2. `start_pr_approval_watch` with `prId`, `prUrl`, `sourceBranch`, `jiraKey`, `intervalMinutes: 10`
@@ -60,7 +60,14 @@ Requires stop hook. Pair with Jira/Atlassian MCP.
    - Approved → Jira transition → `clear_pr_approval_watch`
    - Not approved → `schedule_pr_approval_recheck`
 
-## Tools reference
+## Related skills
+
+| Skill | When |
+| ----- | ---- |
+| `bitbucket-pr-review` | Fix review comments only |
+| `bitbucket-babysit` | Open PR + comments + approval until merge-ready |
+
+## Tools
 
 | Tool | Purpose |
 | ---- | ------- |
@@ -75,6 +82,6 @@ Requires stop hook. Pair with Jira/Atlassian MCP.
 
 | Issue | Fix |
 | ----- | --- |
-| MCP red | Check config path, credentials, `npm run build` |
-| Hook not firing | Merge `examples/hooks.json` into `~/.cursor/hooks.json`, `npm link` for watch hook bin |
+| MCP red | Check `mcp.json` env vars |
+| Hook not firing | Merge `templates/hooks.json` into `~/.cursor/hooks.json` |
 | Wrong destination | Use parent branch, not default integration branch |
