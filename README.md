@@ -86,12 +86,26 @@ From GitHub without clone: [skills/](https://github.com/zhrgns/bitbucket-mcp/tre
 | `BITBUCKET_REPO_SLUG`      | yes\*    | Repository slug         |
 | `BITBUCKET_MCP_CONFIG`     | no       | Custom config path      |
 | `BITBUCKET_MCP_WATCH_FILE` | no       | Custom watch state path |
+| `BITBUCKET_MCP_READ_ZSHRC` | no       | `1` to load creds from `~/.zshrc` (off by default) |
 
 \*Or config file `repository.workspace` / `repository.slug`.
 
 ## Security
 
-- Credentials never stored in repo or committed config
+- Credentials in `mcp.json` env only (not committed)
+- `~/.zshrc` fallback off by default — enable in `mcp.json` if you keep creds in shell profile:
+
+```json
+"env": {
+  "BITBUCKET_MCP_READ_ZSHRC": "1",
+  "BITBUCKET_USERNAME": "...",
+  "BITBUCKET_TOKEN": "..."
+}
+```
+
+Requires `BITBUCKET_USERNAME` and `BITBUCKET_TOKEN` (or `BITBUCKET_APP_PASSWORD`) in `~/.zshrc`. Prefer `mcp.json` env when possible.
+
+- Local config/watch files written with `0600` permissions
 - API calls scoped to configured repository + `/user` + `/users/`
 
 ## License
