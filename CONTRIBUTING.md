@@ -38,8 +38,8 @@ node dist/index.js
 
 1. Add Bitbucket types in `src/types/bitbucket.ts` if the API response is new.
 2. Implement API call in `src/bitbucket/`.
-3. Add MCP input type in `src/types/tools.ts` + parser in `src/mcp/parsers.ts`.
-4. Register in `src/mcp/register-tools.ts`.
+3. Add MCP input type in `src/types/tools.ts` + Zod schema in `src/mcp/schemas.ts` + parser in `src/mcp/parsers.ts`.
+4. Register in `src/mcp/register-tools.ts` with `inputSchema` (required for Cursor tool args).
 5. Update README tool table and relevant skill in `skills/`.
 
 ## Security constraints

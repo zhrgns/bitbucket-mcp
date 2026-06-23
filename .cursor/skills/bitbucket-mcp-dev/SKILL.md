@@ -12,9 +12,9 @@ Agent skill for **working on this repository**. End-user docs: `README.md`. Dev 
 
 ## Two audiences (do not mix)
 
-| Audience    | Where                                      |
-| ----------- | ------------------------------------------ |
-| End users   | `README.md`, `templates/`, `skills/`       |
+| Audience    | Where                                          |
+| ----------- | ---------------------------------------------- |
+| End users   | `README.md`, `templates/`, `skills/`           |
 | Maintainers | `CONTRIBUTING.md`, `bitbucket-mcp-dev`, `src/` |
 
 README = install + tools + downloadable skills only. No yarn/build/dev sections.
@@ -87,8 +87,8 @@ src/hooks/      watch-hook.ts — npx via templates/hooks.json
 
 1. Types → `src/types/bitbucket.ts` / `tools.ts`
 2. API → `src/bitbucket/`
-3. Parser → `src/mcp/parsers.ts`
-4. Register → `src/mcp/register-tools.ts`
+3. Zod schema → `src/mcp/schemas.ts` + parser → `src/mcp/parsers.ts`
+4. Register → `src/mcp/register-tools.ts` (always set `inputSchema`)
 5. README tool table + update matching `skills/*` skill
 6. Hook follow-up in `src/hooks/watch-hook.ts` if watch-related
 
