@@ -11,6 +11,9 @@ import { getRepoApiPrefix } from '../config/paths.js';
 import { bitbucketRequest } from './api-client.js';
 import { resolveReviewers } from './reviewers.js';
 
+const escapeBitbucketQueryValue = (value: string): string =>
+  value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+
 const mapApprovalStatus = (pr: BitbucketPullRequest): PullRequestApprovalStatus => {
   const approvers = (pr.participants ?? [])
     .filter(p => p.approved === true || p.state === 'approved')
@@ -61,9 +64,9 @@ export const listPullRequests = async (
   config: McpConfig,
   query: ListPullRequestsQuery
 ): Promise<BitbucketPullRequestList> => {
-  let q = `state="${query.state}"`;
+  let q = `state="${escapeBitbucketQueryValue(query.state)}"`;
   if (query.source) {
-    q += ` AND source.branch.name="${query.source}"`;
+    q += ` AND source.branch.name="${escapeBitbucketQueryValue(query.source)}"`;
   }
 
   const repoPrefix = getRepoApiPrefix(
