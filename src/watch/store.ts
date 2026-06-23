@@ -4,7 +4,7 @@ import type {
   StartLifecycleWatchInput,
   WatchMode,
 } from '../types/watch.js';
-import { ensureConfigDir, getConfigDir } from '../config/paths.js';
+import { getConfigDir, writePrivateFile } from '../config/paths.js';
 
 const getWatchPath = (): string =>
   process.env.BITBUCKET_MCP_WATCH_FILE?.trim() ||
@@ -73,8 +73,7 @@ export const loadWatch = (): PrLifecycleWatch | null => {
 };
 
 export const saveWatch = (watch: PrLifecycleWatch): void => {
-  ensureConfigDir();
-  fs.writeFileSync(getWatchPath(), JSON.stringify(watch, null, 2));
+  writePrivateFile(getWatchPath(), JSON.stringify(watch, null, 2));
 };
 
 export const startLifecycleWatch = (

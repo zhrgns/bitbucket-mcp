@@ -15,7 +15,8 @@ if (fs.existsSync(configPath)) {
   process.exit(0);
 }
 
-fs.mkdirSync(configDir, { recursive: true });
+fs.mkdirSync(configDir, { recursive: true, mode: 0o700 });
 fs.copyFileSync(examplePath, configPath);
+fs.chmodSync(configPath, 0o600);
 console.log(`Created ${configPath}`);
 console.log('Edit workspace and slug, then restart Cursor.');

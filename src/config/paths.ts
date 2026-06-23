@@ -14,5 +14,10 @@ export const getRepoApiPrefix = (workspace: string, slug: string): string =>
   `https://api.bitbucket.org/2.0/repositories/${workspace}/${slug}`;
 
 export const ensureConfigDir = (): void => {
-  fs.mkdirSync(getConfigDir(), { recursive: true });
+  fs.mkdirSync(getConfigDir(), { recursive: true, mode: 0o700 });
+};
+
+export const writePrivateFile = (filePath: string, content: string): void => {
+  ensureConfigDir();
+  fs.writeFileSync(filePath, content, { encoding: 'utf8', mode: 0o600 });
 };
