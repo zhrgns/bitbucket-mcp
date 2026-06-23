@@ -9,18 +9,25 @@ const getAuthHeader = (): string => {
   return `Basic ${Buffer.from(`${username}:${token}`).toString('base64')}`;
 };
 
-const assertAllowedApiUrl = (url: string, config: McpConfig): void => {
+const isAllowedApiUrl = (url: string, config: McpConfig): boolean => {
   const repoPrefix = getRepoApiPrefix(
     config.repository.workspace,
     config.repository.slug
   );
-  const allowed = [
-    `${BITBUCKET_API_BASE}/user`,
-    `${BITBUCKET_API_BASE}/users/`,
-    repoPrefix,
-  ];
 
-  if (!allowed.some(prefix => url.startsWith(prefix))) {
+  if (url === `${BITBUCKET_API_BASE}/user`) {
+    return true;
+  }
+
+  if (url.startsWith(`${BITBUCKET_API_BASE}/users/`)) {
+    return true;
+  }
+
+  return url === repoPrefix || url.startsWith(`${repoPrefix}/`);
+};
+
+const assertAllowedApiUrl = (url: string, config: McpConfig): void => {
+  if (!isAllowedApiUrl(url, config)) {
     throw new Error(`Request blocked: URL not allowed (${url})`);
   }
 };
