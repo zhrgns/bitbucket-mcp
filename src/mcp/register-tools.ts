@@ -27,13 +27,26 @@ import {
   parseToolArgs,
 } from './parsers.js';
 import { jsonResult } from './result.js';
+import {
+  createPullRequestSchema,
+  emptyToolSchema,
+  getPullRequestApprovalsSchema,
+  getPullRequestCommentsSchema,
+  getPullRequestSchema,
+  listPullRequestsSchema,
+  resolvePullRequestCommentSchema,
+  startPrApprovalWatchSchema,
+  startPrBabysitWatchSchema,
+  startPrReviewWatchSchema,
+} from './schemas.js';
 
 export const registerTools = (server: McpServer): void => {
   server.registerTool(
     'create_pull_request',
     {
       description:
-        'Create a Bitbucket Cloud pull request for the configured repository. Args: source, destination, title, description?, closeSourceBranch?. Reviewers: effective default reviewers + authenticated author + optional extraUsernames from config.',
+        'Create a Bitbucket Cloud pull request for the configured repository. Reviewers: effective default reviewers + authenticated author + optional extraUsernames from config.',
+      inputSchema: createPullRequestSchema,
     },
     async (rawArgs?: unknown) => {
       const config = loadConfig();
@@ -61,7 +74,8 @@ export const registerTools = (server: McpServer): void => {
     'list_pull_requests',
     {
       description:
-        'List pull requests for the configured repository. Args: source?, state? (OPEN|MERGED|DECLINED|SUPERSEDED, default OPEN). Use to detect duplicate open PRs before create.',
+        'List pull requests for the configured repository. Use to detect duplicate open PRs before create.',
+      inputSchema: listPullRequestsSchema,
     },
     async (rawArgs?: unknown) => {
       const config = loadConfig();
@@ -86,6 +100,7 @@ export const registerTools = (server: McpServer): void => {
     {
       description:
         'Get pull request details by prId. Use to check state (OPEN/MERGED) during review watch.',
+      inputSchema: getPullRequestSchema,
     },
     async (rawArgs?: unknown) => {
       const config = loadConfig();
@@ -107,7 +122,8 @@ export const registerTools = (server: McpServer): void => {
     'get_pull_request_approvals',
     {
       description:
-        'Get approval count and approvers. Args: prId? or source? (one required). Source finds first open PR for that branch.',
+        'Get approval count and approvers. Provide prId or source (one required).',
+      inputSchema: getPullRequestApprovalsSchema,
     },
     async (rawArgs?: unknown) => {
       const config = loadConfig();
@@ -121,7 +137,8 @@ export const registerTools = (server: McpServer): void => {
     'get_pull_request_comments',
     {
       description:
-        'List PR comment threads. Args: prId, unresolvedOnly? (default true). Returns unresolvedCount and thread roots with path/line for inline comments.',
+        'List PR comment threads. Returns unresolvedCount and thread roots with path/line for inline comments.',
+      inputSchema: getPullRequestCommentsSchema,
     },
     async (rawArgs?: unknown) => {
       const config = loadConfig();
@@ -139,7 +156,8 @@ export const registerTools = (server: McpServer): void => {
     'resolve_pull_request_comment',
     {
       description:
-        'Resolve a PR comment thread. Args: prId, commentId (thread root id). Call after the fix is pushed.',
+        'Resolve a PR comment thread after the fix is pushed.',
+      inputSchema: resolvePullRequestCommentSchema,
     },
     async (rawArgs?: unknown) => {
       const config = loadConfig();
@@ -157,7 +175,8 @@ export const registerTools = (server: McpServer): void => {
     'start_pr_approval_watch',
     {
       description:
-        'Start approval-only polling (default 10 min). Args: prId, jiraKey, prUrl, sourceBranch, intervalMinutes?, jiraTransitionName?. Requires stop hook.',
+        'Start approval-only polling (default 10 min). Requires stop hook.',
+      inputSchema: startPrApprovalWatchSchema,
     },
     async (rawArgs?: unknown) => {
       const input = parseStartLifecycleWatch(parseToolArgs(rawArgs));
@@ -173,7 +192,8 @@ export const registerTools = (server: McpServer): void => {
     'start_pr_review_watch',
     {
       description:
-        'Start review-comment polling until PR is merged/declined. Args: prId, prUrl, sourceBranch, intervalMinutes?. No Jira required.',
+        'Start review-comment polling until PR is merged/declined.',
+      inputSchema: startPrReviewWatchSchema,
     },
     async (rawArgs?: unknown) => {
       const input = parseStartLifecycleWatch(parseToolArgs(rawArgs));
@@ -186,7 +206,8 @@ export const registerTools = (server: McpServer): void => {
     'start_pr_babysit_watch',
     {
       description:
-        'Start combined review + approval watch until merge-ready. Args: prId, prUrl, sourceBranch, jiraKey, intervalMinutes?, jiraTransitionName?.',
+        'Start combined review + approval watch until merge-ready.',
+      inputSchema: startPrBabysitWatchSchema,
     },
     async (rawArgs?: unknown) => {
       const input = parseStartLifecycleWatch(parseToolArgs(rawArgs));
@@ -202,7 +223,8 @@ export const registerTools = (server: McpServer): void => {
     'schedule_pr_approval_recheck',
     {
       description:
-        'Defer the next lifecycle watch check by one interval. Works for approval, review, and babysit watches.',
+        'Defer the next lifecycle watch check by one interval.',
+      inputSchema: emptyToolSchema,
     },
     async () => {
       const watch = loadWatch();
@@ -225,6 +247,7 @@ export const registerTools = (server: McpServer): void => {
     {
       description:
         'Stop any active PR lifecycle watch (approval, review, or babysit).',
+      inputSchema: emptyToolSchema,
     },
     async () => {
       clearWatch();

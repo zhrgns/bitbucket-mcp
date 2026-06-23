@@ -36,7 +36,8 @@
     "init-config": "node scripts/init-config.mjs"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "1.29.0"
+    "@modelcontextprotocol/sdk": "1.29.0",
+    "zod": "^4.0.0"
   },
   "devDependencies": {
     "@types/node": "22.15.3",
