@@ -18,12 +18,20 @@ const requireNonEmptyString = (value: unknown, field: string): string => {
   return value.trim();
 };
 
-const requirePositiveInt = (value: unknown, field: string): number => {
-  if (typeof value !== 'number' || !Number.isInteger(value) || value <= 0) {
-    throw new Error(`${field} must be a positive integer`);
+const parsePositiveInt = (value: unknown, field: string): number => {
+  if (typeof value === 'number' && Number.isInteger(value) && value > 0) {
+    return value;
   }
-  return value;
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Number(value.trim());
+    if (Number.isInteger(parsed) && parsed > 0) {
+      return parsed;
+    }
+  }
+  throw new Error(`${field} must be a positive integer`);
 };
+
+const requirePositiveInt = parsePositiveInt;
 
 export const parseToolArgs = (value: unknown): Record<string, unknown> => {
   if (value && typeof value === 'object' && !Array.isArray(value)) {
