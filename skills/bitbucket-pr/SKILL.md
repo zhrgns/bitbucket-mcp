@@ -29,10 +29,10 @@ Verify shared history with git before creating.
 
 `list_pull_requests`:
 
-| Field | Value |
-| ----- | ----- |
+| Field    | Value          |
+| -------- | -------------- |
 | `source` | current branch |
-| `state` | `OPEN` |
+| `state`  | `OPEN`         |
 
 If open PR exists → reuse it; skip create.
 
@@ -40,15 +40,17 @@ If open PR exists → reuse it; skip create.
 
 `create_pull_request`:
 
-| Field | Value |
-| ----- | ----- |
-| `source` | current branch |
-| `destination` | parent branch |
-| `title` | `{IssueKey}: {summary}` |
-| `description` | Summary + test plan (markdown) |
-| `closeSourceBranch` | `true` |
+| Field               | Value                          |
+| ------------------- | ------------------------------ |
+| `source`            | current branch                 |
+| `destination`       | parent branch                  |
+| `title`             | `{IssueKey}: {summary}`        |
+| `description`       | Summary + test plan (markdown) |
+| `closeSourceBranch` | `true`                         |
 
-Reviewers resolve automatically from Bitbucket effective defaults + author + optional config.
+Reviewers resolve from Bitbucket effective defaults (author excluded) + optional config extras.
+
+Before `create_pull_request`, use `get_effective_default_reviewers` if reviewer setup needs inspection.
 
 ### 4. Approval watch (optional)
 
@@ -62,26 +64,28 @@ Requires stop hook. Pair with Jira/Atlassian MCP. For full lifecycle use **bitbu
 
 ## Related skills
 
-| Skill | When |
-| ----- | ---- |
-| `bitbucket-pr-review` | Fix review comments only |
-| `bitbucket-babysit` | Open PR + comments + approval until merge-ready |
+| Skill                 | When                                            |
+| --------------------- | ----------------------------------------------- |
+| `bitbucket-pr-review` | Fix review comments only                        |
+| `bitbucket-babysit`   | Open PR + comments + approval until merge-ready |
 
 ## Tools
 
-| Tool | Purpose |
-| ---- | ------- |
-| `create_pull_request` | Create PR with auto reviewers |
-| `list_pull_requests` | List/filter PRs |
-| `get_pull_request_approvals` | Approval count + approvers |
-| `start_pr_approval_watch` | Start polling |
-| `schedule_pr_approval_recheck` | Defer next check |
-| `clear_pr_approval_watch` | Stop polling |
+| Tool                              | Purpose                       |
+| --------------------------------- | ----------------------------- |
+| `create_pull_request`             | Create PR with auto reviewers |
+| `get_effective_default_reviewers` | List repo default reviewers   |
+| `list_pull_requests`              | List/filter PRs               |
+| `get_pull_request_approvals`      | Approval count + approvers    |
+| `start_pr_approval_watch`         | Start polling                 |
+| `schedule_pr_approval_recheck`    | Defer next check              |
+| `clear_pr_approval_watch`         | Stop polling                  |
 
 ## Pitfalls
 
-| Issue | Fix |
-| ----- | --- |
-| MCP red | Check `mcp.json` env vars |
-| Hook not firing | Merge `templates/hooks.json` into `~/.cursor/hooks.json` |
-| Wrong destination | Use parent branch, not default integration branch |
+| Issue               | Fix                                                                                 |
+| ------------------- | ----------------------------------------------------------------------------------- |
+| MCP red             | Check `mcp.json` env vars                                                           |
+| Author reviewer 400 | `get_effective_default_reviewers` — author has `isAuthor: true`, excluded on create |
+| Hook not firing     | Merge `templates/hooks.json` into `~/.cursor/hooks.json`                            |
+| Wrong destination   | Use parent branch, not default integration branch                                   |
