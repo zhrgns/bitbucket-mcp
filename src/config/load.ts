@@ -4,8 +4,8 @@ import { getConfigPath } from './paths.js';
 
 const DEFAULT_REVIEWERS: ReviewerConfig = {
   useEffectiveDefaultReviewers: true,
-  includeAuthorAsReviewer: true,
-  extraUsernames: [],
+  includeAuthorAsReviewer: false,
+  extraUsernames: []
 };
 
 let cachedConfig: McpConfig | null = null;
@@ -23,7 +23,7 @@ const parseReviewers = (raw?: Partial<ReviewerConfig>): ReviewerConfig => {
       ? rawExtraUsernames
           .filter((u): u is string => typeof u === 'string' && !!u.trim())
           .map((u) => u.trim())
-      : [],
+      : []
   };
 };
 
@@ -33,11 +33,16 @@ const loadReviewersFromFile = (): ReviewerConfig | null => {
     return null;
   }
 
-  const raw = JSON.parse(fs.readFileSync(configPath, 'utf8')) as Partial<McpConfig>;
+  const raw = JSON.parse(
+    fs.readFileSync(configPath, 'utf8')
+  ) as Partial<McpConfig>;
   return parseReviewers(raw.reviewers);
 };
 
-const loadRepositoryFromEnv = (): { workspace: string; slug: string } | null => {
+const loadRepositoryFromEnv = (): {
+  workspace: string;
+  slug: string;
+} | null => {
   const workspace = process.env.BITBUCKET_WORKSPACE?.trim();
   const slug = process.env.BITBUCKET_REPO_SLUG?.trim();
 
@@ -48,13 +53,18 @@ const loadRepositoryFromEnv = (): { workspace: string; slug: string } | null => 
   return null;
 };
 
-const loadRepositoryFromFile = (): { workspace: string; slug: string } | null => {
+const loadRepositoryFromFile = (): {
+  workspace: string;
+  slug: string;
+} | null => {
   const configPath = getConfigPath();
   if (!fs.existsSync(configPath)) {
     return null;
   }
 
-  const raw = JSON.parse(fs.readFileSync(configPath, 'utf8')) as Partial<McpConfig>;
+  const raw = JSON.parse(
+    fs.readFileSync(configPath, 'utf8')
+  ) as Partial<McpConfig>;
   const workspace = raw.repository?.workspace?.trim();
   const slug = raw.repository?.slug?.trim();
 
@@ -80,7 +90,7 @@ export const loadConfig = (): McpConfig => {
 
   cachedConfig = {
     repository,
-    reviewers: loadReviewersFromFile() ?? parseReviewers(),
+    reviewers: loadReviewersFromFile() ?? parseReviewers()
   };
 
   return cachedConfig;

@@ -36,6 +36,16 @@ const fetchUserByUsername = async (
   }
 };
 
+const normalizeUuid = (uuid: string): string =>
+  uuid.replace(/[{}]/g, '').toLowerCase();
+
+const isSameUser = (a: BitbucketUser, b: BitbucketUser): boolean => {
+  if (normalizeUuid(a.uuid) === normalizeUuid(b.uuid)) {
+    return true;
+  }
+  return !!a.account_id && a.account_id === b.account_id;
+};
+
 export const resolveReviewers = async (
   config: McpConfig
 ): Promise<{ uuid: string; display_name?: string }[]> => {
@@ -45,11 +55,17 @@ export const resolveReviewers = async (
     config.repository.slug
   );
 
+  const author = await bitbucketRequest<BitbucketUser>(
+    `${BITBUCKET_API_BASE}/user`,
+    config
+  );
+
   const addUser = (user?: BitbucketUser | null): void => {
-    if (!user?.uuid) {
+    if (!user?.uuid || isSameUser(user, author)) {
       return;
     }
-    byUuid.set(user.uuid, {
+    const key = normalizeUuid(user.uuid);
+    byUuid.set(key, {
       uuid: user.uuid,
       display_name: user.display_name ?? user.nickname,
     });
@@ -61,14 +77,6 @@ export const resolveReviewers = async (
       config
     );
     defaults.forEach(addUser);
-  }
-
-  if (config.reviewers.includeAuthorAsReviewer) {
-    const author = await bitbucketRequest<BitbucketUser>(
-      `${BITBUCKET_API_BASE}/user`,
-      config
-    );
-    addUser(author);
   }
 
   for (const username of config.reviewers.extraUsernames) {
