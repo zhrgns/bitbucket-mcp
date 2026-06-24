@@ -30,7 +30,7 @@
   ],
   "scripts": {
     "build": "tsc",
-    "prepare": "yarn build",
+    "prepare": "node scripts/ensure-dist.mjs",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
     "init-config": "node scripts/init-config.mjs"

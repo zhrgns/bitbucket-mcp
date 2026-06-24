@@ -31,6 +31,19 @@ Not on npm yet? Replace args with:
 "args": ["-y", "github:zhrgns/bitbucket-mcp"]
 ```
 
+**Local clone** (repo checkout): build once, then point Cursor at `dist/index.js`:
+
+```bash
+cd /path/to/bitbucket-mcp && yarn && yarn build
+```
+
+```json
+"command": "node",
+"args": ["/path/to/bitbucket-mcp/dist/index.js"]
+```
+
+If MCP shows `Connection closed`, `dist/index.js` is missing — run `yarn build` again.
+
 API token: Atlassian account → Security → API tokens (repository read/write).
 
 > Credentials and repo identity live in `mcp.json` env. Never commit them.
