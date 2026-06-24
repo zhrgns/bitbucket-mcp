@@ -35,7 +35,7 @@ const fetchEffectiveDefaultReviewers = async (
   let nextUrl: string | undefined = initialUrl;
 
   while (nextUrl) {
-    const page = await bitbucketRequest<PaginatedDefaultReviewers>(
+    const page: PaginatedDefaultReviewers = await bitbucketRequest<PaginatedDefaultReviewers>(
       nextUrl,
       config
     );
