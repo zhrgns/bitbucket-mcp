@@ -46,7 +46,7 @@ If open PR exists → reuse it; skip create.
 | `destination` | parent branch |
 | `title` | `{IssueKey}: {summary}` |
 | `description` | Summary + test plan (markdown) |
-| `closeSourceBranch` | `false` |
+| `closeSourceBranch` | `true` |
 
 Reviewers resolve automatically from Bitbucket effective defaults + author + optional config.
 
