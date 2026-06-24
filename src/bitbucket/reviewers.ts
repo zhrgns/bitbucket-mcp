@@ -7,6 +7,26 @@ import type {
 import { getRepoApiPrefix } from '../config/paths.js';
 import { BITBUCKET_API_BASE, bitbucketRequest } from './api-client.js';
 
+const extractReviewerUser = (
+  entry: BitbucketDefaultReviewerEntry
+): BitbucketUser | null => {
+  const nested = entry.user ?? entry.reviewer;
+  if (nested?.uuid) {
+    return nested;
+  }
+
+  if (entry.uuid) {
+    return {
+      uuid: entry.uuid,
+      display_name: entry.display_name,
+      nickname: entry.nickname,
+      account_id: entry.account_id,
+    };
+  }
+
+  return null;
+};
+
 const fetchEffectiveDefaultReviewers = async (
   initialUrl: string,
   config: McpConfig
@@ -56,7 +76,7 @@ export const getEffectiveDefaultReviewers = async (
   );
 
   return entries.flatMap((entry) => {
-    const user = entry.user;
+    const user = extractReviewerUser(entry);
     if (!user?.uuid) {
       return [];
     }
@@ -135,7 +155,7 @@ export const resolveReviewers = async (
       config
     );
     for (const entry of defaults) {
-      addUser(entry.user);
+      addUser(extractReviewerUser(entry));
     }
   }
 

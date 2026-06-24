@@ -52,8 +52,13 @@ export type BitbucketPullRequestList = {
 /** Entry from `GET .../effective-default-reviewers`. */
 export type BitbucketDefaultReviewerEntry = {
   user?: BitbucketUser;
+  reviewer?: BitbucketUser;
   reviewer_type?: string;
   type?: string;
+  uuid?: string;
+  display_name?: string;
+  nickname?: string;
+  account_id?: string;
 };
 
 /** Paginated list wrapper for user collections (e.g. default reviewers). */
