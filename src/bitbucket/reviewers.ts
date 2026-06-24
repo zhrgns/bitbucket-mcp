@@ -1,25 +1,30 @@
 import type { McpConfig } from '../types/config.js';
-import type { BitbucketUser, PaginatedUsers } from '../types/bitbucket.js';
+import type {
+  BitbucketDefaultReviewerEntry,
+  BitbucketUser,
+  PaginatedDefaultReviewers,
+} from '../types/bitbucket.js';
 import { getRepoApiPrefix } from '../config/paths.js';
 import { BITBUCKET_API_BASE, bitbucketRequest } from './api-client.js';
 
-const fetchAllPages = async (
+const fetchEffectiveDefaultReviewers = async (
   initialUrl: string,
   config: McpConfig
-): Promise<BitbucketUser[]> => {
-  const users: BitbucketUser[] = [];
+): Promise<BitbucketDefaultReviewerEntry[]> => {
+  const entries: BitbucketDefaultReviewerEntry[] = [];
   let nextUrl: string | undefined = initialUrl;
 
   while (nextUrl) {
-    const page: PaginatedUsers = await bitbucketRequest<PaginatedUsers>(
+    const page = await bitbucketRequest<PaginatedDefaultReviewers>(
       nextUrl,
       config
     );
-    users.push(...(page.values ?? []));
+
+    entries.push(...(page.values ?? []));
     nextUrl = page.next;
   }
 
-  return users;
+  return entries;
 };
 
 export type EffectiveDefaultReviewer = {
@@ -27,6 +32,7 @@ export type EffectiveDefaultReviewer = {
   display_name?: string;
   nickname?: string;
   account_id?: string;
+  reviewer_type?: string;
   isAuthor: boolean;
   includedOnPrCreate: boolean;
 };
@@ -44,21 +50,29 @@ export const getEffectiveDefaultReviewers = async (
     config
   );
 
-  const users = await fetchAllPages(
+  const entries = await fetchEffectiveDefaultReviewers(
     `${repoPrefix}/effective-default-reviewers?pagelen=50`,
     config
   );
 
-  return users.map((user) => {
+  return entries.flatMap((entry) => {
+    const user = entry.user;
+    if (!user?.uuid) {
+      return [];
+    }
+
     const authorMatch = isSameUser(user, author);
-    return {
-      uuid: user.uuid,
-      display_name: user.display_name ?? user.nickname,
-      nickname: user.nickname,
-      account_id: user.account_id,
-      isAuthor: authorMatch,
-      includedOnPrCreate: !authorMatch,
-    };
+    return [
+      {
+        uuid: user.uuid,
+        display_name: user.display_name ?? user.nickname,
+        nickname: user.nickname,
+        account_id: user.account_id,
+        reviewer_type: entry.reviewer_type,
+        isAuthor: authorMatch,
+        includedOnPrCreate: !authorMatch,
+      },
+    ];
   });
 };
 
@@ -76,13 +90,17 @@ const fetchUserByUsername = async (
   }
 };
 
-const normalizeUuid = (uuid: string): string =>
-  uuid.replace(/[{}]/g, '').toLowerCase();
+const normalizeUuid = (uuid?: string): string =>
+  (uuid ?? '').replace(/[{}]/g, '').toLowerCase();
 
 const isSameUser = (a: BitbucketUser, b: BitbucketUser): boolean => {
-  if (normalizeUuid(a.uuid) === normalizeUuid(b.uuid)) {
+  const aUuid = normalizeUuid(a.uuid);
+  const bUuid = normalizeUuid(b.uuid);
+
+  if (aUuid && bUuid && aUuid === bUuid) {
     return true;
   }
+
   return !!a.account_id && a.account_id === b.account_id;
 };
 
@@ -112,11 +130,13 @@ export const resolveReviewers = async (
   };
 
   if (config.reviewers.useEffectiveDefaultReviewers) {
-    const defaults = await fetchAllPages(
+    const defaults = await fetchEffectiveDefaultReviewers(
       `${repoPrefix}/effective-default-reviewers`,
       config
     );
-    defaults.forEach(addUser);
+    for (const entry of defaults) {
+      addUser(entry.user);
+    }
   }
 
   for (const username of config.reviewers.extraUsernames) {
