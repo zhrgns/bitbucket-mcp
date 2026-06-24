@@ -1,20 +1,21 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import {
   getPullRequestComments,
-  resolvePullRequestComment,
+  resolvePullRequestComment
 } from '../bitbucket/comments.js';
 import {
   createPullRequest,
   getPullRequestApprovals,
   getPullRequestById,
-  listPullRequests,
+  listPullRequests
 } from '../bitbucket/pull-requests.js';
+import { getEffectiveDefaultReviewers } from '../bitbucket/reviewers.js';
 import { loadConfig } from '../config/load.js';
 import {
   clearWatch,
   loadWatch,
   scheduleNextCheck,
-  startLifecycleWatch,
+  startLifecycleWatch
 } from '../watch/store.js';
 import {
   parseCreatePullRequest,
@@ -24,7 +25,7 @@ import {
   parsePrId,
   parseResolveComment,
   parseStartLifecycleWatch,
-  parseToolArgs,
+  parseToolArgs
 } from './parsers.js';
 import { jsonResult } from './result.js';
 import {
@@ -37,7 +38,7 @@ import {
   resolvePullRequestCommentSchema,
   startPrApprovalWatchSchema,
   startPrBabysitWatchSchema,
-  startPrReviewWatchSchema,
+  startPrReviewWatchSchema
 } from './schemas.js';
 
 export const registerTools = (server: McpServer): void => {
@@ -45,8 +46,8 @@ export const registerTools = (server: McpServer): void => {
     'create_pull_request',
     {
       description:
-        'Create a Bitbucket Cloud pull request for the configured repository. Reviewers: effective default reviewers + authenticated author + optional extraUsernames from config.',
-      inputSchema: createPullRequestSchema,
+        'Create a Bitbucket Cloud pull request for the configured repository. Reviewers: effective default reviewers (author excluded) + optional extraUsernames from config.',
+      inputSchema: createPullRequestSchema
     },
     async (rawArgs?: unknown) => {
       const config = loadConfig();
@@ -64,8 +65,8 @@ export const registerTools = (server: McpServer): void => {
         destination: input.destination,
         reviewers: (pr.reviewers ?? []).map((r) => ({
           uuid: r.uuid,
-          display_name: r.display_name ?? r.nickname,
-        })),
+          display_name: r.display_name ?? r.nickname
+        }))
       });
     }
   );
@@ -75,7 +76,7 @@ export const registerTools = (server: McpServer): void => {
     {
       description:
         'List pull requests for the configured repository. Use to detect duplicate open PRs before create.',
-      inputSchema: listPullRequestsSchema,
+      inputSchema: listPullRequestsSchema
     },
     async (rawArgs?: unknown) => {
       const config = loadConfig();
@@ -88,10 +89,30 @@ export const registerTools = (server: McpServer): void => {
         state: pr.state,
         url: pr.links?.html?.href,
         source: pr.source?.branch?.name,
-        destination: pr.destination?.branch?.name,
+        destination: pr.destination?.branch?.name
       }));
 
       return jsonResult(items);
+    }
+  );
+
+  server.registerTool(
+    'get_effective_default_reviewers',
+    {
+      description:
+        'List Bitbucket effective default reviewers for the configured repository. Shows which reviewers are applied on create_pull_request (author is excluded).',
+      inputSchema: emptyToolSchema
+    },
+    async () => {
+      const config = loadConfig();
+      const reviewers = await getEffectiveDefaultReviewers(config);
+
+      return jsonResult({
+        count: reviewers.length,
+        includedOnPrCreateCount: reviewers.filter((r) => r.includedOnPrCreate)
+          .length,
+        reviewers
+      });
     }
   );
 
@@ -100,7 +121,7 @@ export const registerTools = (server: McpServer): void => {
     {
       description:
         'Get pull request details by prId. Use to check state (OPEN/MERGED) during review watch.',
-      inputSchema: getPullRequestSchema,
+      inputSchema: getPullRequestSchema
     },
     async (rawArgs?: unknown) => {
       const config = loadConfig();
@@ -113,7 +134,7 @@ export const registerTools = (server: McpServer): void => {
         state: pr.state,
         url: pr.links?.html?.href,
         source: pr.source?.branch?.name,
-        destination: pr.destination?.branch?.name,
+        destination: pr.destination?.branch?.name
       });
     }
   );
@@ -123,7 +144,7 @@ export const registerTools = (server: McpServer): void => {
     {
       description:
         'Get approval count and approvers. Provide prId or source (one required).',
-      inputSchema: getPullRequestApprovalsSchema,
+      inputSchema: getPullRequestApprovalsSchema
     },
     async (rawArgs?: unknown) => {
       const config = loadConfig();
@@ -138,7 +159,7 @@ export const registerTools = (server: McpServer): void => {
     {
       description:
         'List PR comment threads. Returns unresolvedCount and thread roots with path/line for inline comments.',
-      inputSchema: getPullRequestCommentsSchema,
+      inputSchema: getPullRequestCommentsSchema
     },
     async (rawArgs?: unknown) => {
       const config = loadConfig();
@@ -155,9 +176,8 @@ export const registerTools = (server: McpServer): void => {
   server.registerTool(
     'resolve_pull_request_comment',
     {
-      description:
-        'Resolve a PR comment thread after the fix is pushed.',
-      inputSchema: resolvePullRequestCommentSchema,
+      description: 'Resolve a PR comment thread after the fix is pushed.',
+      inputSchema: resolvePullRequestCommentSchema
     },
     async (rawArgs?: unknown) => {
       const config = loadConfig();
@@ -176,7 +196,7 @@ export const registerTools = (server: McpServer): void => {
     {
       description:
         'Start approval-only polling (default 10 min). Requires stop hook.',
-      inputSchema: startPrApprovalWatchSchema,
+      inputSchema: startPrApprovalWatchSchema
     },
     async (rawArgs?: unknown) => {
       const input = parseStartLifecycleWatch(parseToolArgs(rawArgs));
@@ -191,9 +211,8 @@ export const registerTools = (server: McpServer): void => {
   server.registerTool(
     'start_pr_review_watch',
     {
-      description:
-        'Start review-comment polling until PR is merged/declined.',
-      inputSchema: startPrReviewWatchSchema,
+      description: 'Start review-comment polling until PR is merged/declined.',
+      inputSchema: startPrReviewWatchSchema
     },
     async (rawArgs?: unknown) => {
       const input = parseStartLifecycleWatch(parseToolArgs(rawArgs));
@@ -205,9 +224,8 @@ export const registerTools = (server: McpServer): void => {
   server.registerTool(
     'start_pr_babysit_watch',
     {
-      description:
-        'Start combined review + approval watch until merge-ready.',
-      inputSchema: startPrBabysitWatchSchema,
+      description: 'Start combined review + approval watch until merge-ready.',
+      inputSchema: startPrBabysitWatchSchema
     },
     async (rawArgs?: unknown) => {
       const input = parseStartLifecycleWatch(parseToolArgs(rawArgs));
@@ -222,9 +240,8 @@ export const registerTools = (server: McpServer): void => {
   server.registerTool(
     'schedule_pr_approval_recheck',
     {
-      description:
-        'Defer the next lifecycle watch check by one interval.',
-      inputSchema: emptyToolSchema,
+      description: 'Defer the next lifecycle watch check by one interval.',
+      inputSchema: emptyToolSchema
     },
     async () => {
       const watch = loadWatch();
@@ -237,7 +254,7 @@ export const registerTools = (server: McpServer): void => {
         mode: updated.mode,
         prId: updated.prId,
         nextCheckAt: new Date(updated.nextCheckAt).toISOString(),
-        intervalMinutes: updated.intervalMinutes,
+        intervalMinutes: updated.intervalMinutes
       });
     }
   );
@@ -247,7 +264,7 @@ export const registerTools = (server: McpServer): void => {
     {
       description:
         'Stop any active PR lifecycle watch (approval, review, or babysit).',
-      inputSchema: emptyToolSchema,
+      inputSchema: emptyToolSchema
     },
     async () => {
       clearWatch();
@@ -264,5 +281,5 @@ const watchPayload = (watch: ReturnType<typeof startLifecycleWatch>) => ({
   intervalMinutes: watch.intervalMinutes,
   jiraKey: watch.jiraKey,
   jiraTransitionName: watch.jiraTransitionName,
-  message: `Watch started (${watch.mode}). Stop hook re-prompts each interval.`,
+  message: `Watch started (${watch.mode}). Stop hook re-prompts each interval.`
 });

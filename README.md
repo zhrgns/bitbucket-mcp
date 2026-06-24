@@ -65,6 +65,7 @@ From GitHub without clone: [skills/](https://github.com/zhrgns/bitbucket-mcp/tre
 | Tool                           | Description                         |
 | ------------------------------ | ----------------------------------- |
 | `create_pull_request`          | Create PR with auto reviewers       |
+| `get_effective_default_reviewers` | List repo default reviewers      |
 | `list_pull_requests`           | Filter by `source`, `state`         |
 | `get_pull_request`             | PR details + state                  |
 | `get_pull_request_approvals`   | Approval count + approvers          |

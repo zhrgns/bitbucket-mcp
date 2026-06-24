@@ -22,6 +22,46 @@ const fetchAllPages = async (
   return users;
 };
 
+export type EffectiveDefaultReviewer = {
+  uuid: string;
+  display_name?: string;
+  nickname?: string;
+  account_id?: string;
+  isAuthor: boolean;
+  includedOnPrCreate: boolean;
+};
+
+export const getEffectiveDefaultReviewers = async (
+  config: McpConfig
+): Promise<EffectiveDefaultReviewer[]> => {
+  const repoPrefix = getRepoApiPrefix(
+    config.repository.workspace,
+    config.repository.slug
+  );
+
+  const author = await bitbucketRequest<BitbucketUser>(
+    `${BITBUCKET_API_BASE}/user`,
+    config
+  );
+
+  const users = await fetchAllPages(
+    `${repoPrefix}/effective-default-reviewers?pagelen=50`,
+    config
+  );
+
+  return users.map((user) => {
+    const authorMatch = isSameUser(user, author);
+    return {
+      uuid: user.uuid,
+      display_name: user.display_name ?? user.nickname,
+      nickname: user.nickname,
+      account_id: user.account_id,
+      isAuthor: authorMatch,
+      includedOnPrCreate: !authorMatch,
+    };
+  });
+};
+
 const fetchUserByUsername = async (
   username: string,
   config: McpConfig
