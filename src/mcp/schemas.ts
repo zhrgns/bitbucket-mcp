@@ -46,17 +46,13 @@ export const getPullRequestSchema = {
   prId: positiveInt,
 };
 
-export const getPullRequestApprovalsSchema = z
-  .object({
-    prId: positiveInt.optional(),
-    source: z
-      .string()
-      .optional()
-      .describe('Source branch — finds first open PR'),
-  })
-  .refine((data) => data.prId !== undefined || !!data.source?.trim(), {
-    message: 'prId or source is required',
-  });
+export const getPullRequestApprovalsSchema = {
+  prId: positiveInt.optional(),
+  source: z
+    .string()
+    .optional()
+    .describe('Source branch — finds first open PR (prId or source required)'),
+};
 
 export const getPullRequestCommentsSchema = {
   prId: positiveInt,
@@ -89,4 +85,4 @@ export const startPrBabysitWatchSchema = {
   jiraKey: z.string().min(1).describe('Jira issue key'),
 };
 
-export const emptyToolSchema = {};
+export const emptyToolSchema = z.object({});
