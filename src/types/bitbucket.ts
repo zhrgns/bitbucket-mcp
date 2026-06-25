@@ -201,12 +201,26 @@ export type PullRequestActivitySummary = {
 /** Diff summary returned by `get_pull_request_diff`. */
 export type PullRequestDiffSummary = {
   prId: number;
-  sourceCommitHash: string;
-  destinationCommitHash: string;
+  sourceCommitHash?: string;
+  destinationCommitHash?: string;
+  sourceBranch?: string;
+  destinationBranch?: string;
+  changedFiles: string[];
   path?: string;
   diff: string;
   truncated: boolean;
   charCount: number;
+};
+
+export type BitbucketDiffstatList = {
+  values?: {
+    status?: string;
+    old?: { path?: string };
+    new?: { path?: string };
+    lines_added?: number;
+    lines_removed?: number;
+  }[];
+  next?: string;
 };
 
 /** Participant response from approve / request-changes. */

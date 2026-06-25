@@ -40,7 +40,9 @@ Use **bitbucket-mcp** tools only — never `curl` or shell API calls.
 | `path` | optional — single file |
 | `maxChars` | optional — default 120000 |
 
-**Fallback when MCP tools are unavailable:** use local `git diff origin/<destination>...HEAD` to produce a **draft review only**. Do **not** post to Bitbucket without the MCP tools.
+Check `changedFiles` first — if unexpected paths, stop and use local `git diff origin/<destination>...HEAD`.
+
+**Fallback when MCP tools are unavailable:** use local `git diff origin/<destination>...HEAD` (three-dot) to produce a **draft review only**. Do **not** post to Bitbucket without the MCP tools.
 
 ### 4. Check CI
 

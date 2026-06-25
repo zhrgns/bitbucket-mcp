@@ -212,7 +212,7 @@ export const registerTools = (server: McpServer): void => {
     'get_pull_request_diff',
     {
       description:
-        'Get unified diff for a pull request. Optional path filter and maxChars truncation.',
+        'Get PR topic diff (matches Bitbucket UI). Returns changedFiles for sanity check before reading diff.',
       inputSchema: getPullRequestDiffSchema
     },
     async (rawArgs?: unknown) => {

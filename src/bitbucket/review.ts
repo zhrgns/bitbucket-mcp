@@ -3,6 +3,7 @@ import type {
   BitbucketActivityItem,
   BitbucketActivityList,
   BitbucketCommitStatusList,
+  BitbucketDiffstatList,
   PullRequestActivityEntry,
   PullRequestActivitySummary,
   PullRequestBuildStatus,
@@ -22,17 +23,6 @@ import { getPullRequestById } from './pull-requests.js';
 const DEFAULT_DIFF_MAX_CHARS = 120_000;
 const FAILED_BUILD_STATES = new Set(['FAILED', 'STOPPED']);
 const IN_PROGRESS_BUILD_STATES = new Set(['INPROGRESS', 'PENDING']);
-
-const requireCommitHashes = (
-  pr: Awaited<ReturnType<typeof getPullRequestById>>
-): { source: string; destination: string } => {
-  const source = pr.source?.commit?.hash;
-  const destination = pr.destination?.commit?.hash;
-  if (!source || !destination) {
-    throw new Error('Pull request is missing source or destination commit hash');
-  }
-  return { source, destination };
-};
 
 const fetchAllPages = async <T extends { next?: string; values?: unknown[] }>(
   initialUrl: string,
@@ -54,31 +44,70 @@ const fetchAllPages = async <T extends { next?: string; values?: unknown[] }>(
   return items;
 };
 
+const buildPrDiffUrl = (
+  repoPrefix: string,
+  prId: number,
+  path?: string
+): string => {
+  const params = new URLSearchParams({ topic: 'true' });
+  if (path) {
+    params.set('path', path);
+  }
+  return `${repoPrefix}/pullrequests/${prId}/diff?${params.toString()}`;
+};
+
+const extractDiffstatPath = (
+  entry: NonNullable<BitbucketDiffstatList['values']>[number]
+): string | undefined => entry.new?.path ?? entry.old?.path;
+
+const getPullRequestChangedFiles = async (
+  config: McpConfig,
+  repoPrefix: string,
+  prId: number
+): Promise<string[]> => {
+  const rawEntries = await fetchAllPages<BitbucketDiffstatList>(
+    `${repoPrefix}/pullrequests/${prId}/diffstat?topic=true&pagelen=100`,
+    config
+  );
+
+  return rawEntries
+    .map((item) =>
+      extractDiffstatPath(
+        item as NonNullable<BitbucketDiffstatList['values']>[number]
+      )
+    )
+    .filter((path): path is string => Boolean(path));
+};
+
 export const getPullRequestDiff = async (
   config: McpConfig,
   input: GetPullRequestDiffInput
 ): Promise<PullRequestDiffSummary> => {
   const pr = await getPullRequestById(config, input.prId);
-  const { source, destination } = requireCommitHashes(pr);
   const repoPrefix = getRepoApiPrefix(
     config.repository.workspace,
     config.repository.slug
   );
 
-  let url = `${repoPrefix}/diff/${destination}..${source}`;
-  if (input.path) {
-    url += `?path=${encodeURIComponent(input.path)}`;
-  }
+  const [changedFiles, rawDiff] = await Promise.all([
+    getPullRequestChangedFiles(config, repoPrefix, input.prId),
+    bitbucketTextRequest(
+      buildPrDiffUrl(repoPrefix, input.prId, input.path),
+      config
+    ),
+  ]);
 
   const maxChars = input.maxChars ?? DEFAULT_DIFF_MAX_CHARS;
-  const rawDiff = await bitbucketTextRequest(url, config);
   const truncated = rawDiff.length > maxChars;
   const diff = truncated ? rawDiff.slice(0, maxChars) : rawDiff;
 
   return {
     prId: input.prId,
-    sourceCommitHash: source,
-    destinationCommitHash: destination,
+    sourceCommitHash: pr.source?.commit?.hash,
+    destinationCommitHash: pr.destination?.commit?.hash,
+    sourceBranch: pr.source?.branch?.name,
+    destinationBranch: pr.destination?.branch?.name,
+    changedFiles,
     path: input.path,
     diff,
     truncated,
