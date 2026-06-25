@@ -1,5 +1,6 @@
 import type { McpConfig } from '../types/config.js';
 import type {
+  AddPullRequestCommentPayload,
   BitbucketComment,
   BitbucketCommentList,
   PullRequestCommentThread,
@@ -101,4 +102,54 @@ export const resolvePullRequestComment = async (
   );
 
   return { prId, commentId, resolved: true };
+};
+
+export const addPullRequestComment = async (
+  config: McpConfig,
+  prId: number,
+  payload: AddPullRequestCommentPayload
+): Promise<{
+  prId: number;
+  commentId: number;
+  inline: boolean;
+  path?: string;
+  line?: number;
+}> => {
+  const repoPrefix = getRepoApiPrefix(
+    config.repository.workspace,
+    config.repository.slug
+  );
+
+  const body: {
+    content: { raw: string };
+    inline?: { path: string; from: number; to?: number };
+  } = {
+    content: { raw: payload.content },
+  };
+
+  if (payload.path) {
+    const line = payload.line ?? 1;
+    body.inline = {
+      path: payload.path,
+      from: line,
+      to: payload.toLine ?? line,
+    };
+  }
+
+  const comment = await bitbucketRequest<BitbucketComment>(
+    `${repoPrefix}/pullrequests/${prId}/comments`,
+    config,
+    {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }
+  );
+
+  return {
+    prId,
+    commentId: comment.id,
+    inline: payload.path !== undefined,
+    path: payload.path,
+    line: payload.line,
+  };
 };

@@ -20,6 +20,17 @@ export type BitbucketParticipant = {
   user?: BitbucketUser;
 };
 
+/** Commit ref on a pull request branch. */
+export type BitbucketCommitRef = {
+  hash?: string;
+};
+
+/** Branch endpoint on a pull request. */
+export type BitbucketBranchRef = {
+  branch?: { name?: string };
+  commit?: BitbucketCommitRef;
+};
+
 /** Pull request resource returned by Bitbucket API. */
 export type BitbucketPullRequest = {
   id: number;
@@ -27,10 +38,11 @@ export type BitbucketPullRequest = {
   /** `OPEN` | `MERGED` | `DECLINED` | `SUPERSEDED` */
   state: string;
   links?: { html?: { href?: string } };
-  source?: { branch?: { name?: string } };
-  destination?: { branch?: { name?: string } };
+  source?: BitbucketBranchRef;
+  destination?: BitbucketBranchRef;
   reviewers?: BitbucketUser[];
   participants?: BitbucketParticipant[];
+  updated_on?: string;
 };
 
 /** Normalized approval summary exposed by `get_pull_request_approvals`. */
@@ -129,4 +141,117 @@ export type PullRequestCommentsSummary = {
   state: string;
   unresolvedCount: number;
   unresolved: PullRequestCommentThread[];
+};
+
+/** Body fields for `POST .../pullrequests/{id}/comments`. */
+export type AddPullRequestCommentPayload = {
+  content: string;
+  path?: string;
+  line?: number;
+  toLine?: number;
+};
+
+/** Normalized build/commit status on a pull request. */
+export type PullRequestBuildStatus = {
+  key: string;
+  name: string;
+  state: string;
+  description?: string;
+  url?: string;
+  refname?: string;
+  createdOn?: string;
+  updatedOn?: string;
+};
+
+/** Summary returned by `get_pull_request_build_status`. */
+export type PullRequestBuildStatusSummary = {
+  prId: number;
+  sourceCommitHash?: string;
+  allPassed: boolean;
+  hasFailed: boolean;
+  hasInProgress: boolean;
+  statuses: PullRequestBuildStatus[];
+};
+
+/** Normalized PR activity entry. */
+export type PullRequestActivityEntry = {
+  type: 'comment' | 'approval' | 'changes_requested' | 'update' | 'other';
+  date?: string;
+  author?: string;
+  authorUuid?: string;
+  content?: string;
+  commentId?: number;
+  path?: string;
+  line?: number;
+  sourceCommitHash?: string;
+};
+
+/** Summary returned by `get_pull_request_activity`. */
+export type PullRequestActivitySummary = {
+  prId: number;
+  sourceCommitHash?: string;
+  destinationCommitHash?: string;
+  currentUserUuid?: string;
+  commentsOnCurrentCommit: number;
+  currentUserCommentsOnCurrentCommit: number;
+  reviewAlreadyPostedForCommit: boolean;
+  entries: PullRequestActivityEntry[];
+};
+
+/** Diff summary returned by `get_pull_request_diff`. */
+export type PullRequestDiffSummary = {
+  prId: number;
+  sourceCommitHash: string;
+  destinationCommitHash: string;
+  path?: string;
+  diff: string;
+  truncated: boolean;
+  charCount: number;
+};
+
+/** Participant response from approve / request-changes. */
+export type PullRequestParticipantAction = {
+  prId: number;
+  state: string;
+  approved: boolean;
+  participatedOn?: string;
+};
+
+export type BitbucketCommitStatusList = {
+  values?: {
+    key?: string;
+    name?: string;
+    state?: string;
+    description?: string;
+    url?: string;
+    refname?: string;
+    created_on?: string;
+    updated_on?: string;
+  }[];
+  next?: string;
+};
+
+export type BitbucketActivityList = {
+  values?: BitbucketActivityItem[];
+  next?: string;
+};
+
+export type BitbucketActivityItem = {
+  comment?: BitbucketComment & {
+    pullrequest?: { id?: number };
+  };
+  approval?: {
+    date?: string;
+    user?: BitbucketUser;
+  };
+  changes_requested?: {
+    date?: string;
+    user?: BitbucketUser;
+  };
+  update?: {
+    date?: string;
+    source?: BitbucketBranchRef;
+    destination?: BitbucketBranchRef;
+    author?: BitbucketUser;
+  };
 };

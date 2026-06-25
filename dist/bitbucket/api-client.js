@@ -20,16 +20,29 @@ const assertAllowedApiUrl = (url, config) => {
         throw new Error(`Request blocked: URL not allowed (${url})`);
     }
 };
+const buildHeaders = (options, accept) => ({
+    Authorization: getAuthHeader(),
+    Accept: accept,
+    ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+    ...options.headers,
+});
+const parseErrorMessage = (text, statusText) => {
+    if (!text) {
+        return statusText;
+    }
+    try {
+        const data = JSON.parse(text);
+        return data?.error?.message || data?.message || text;
+    }
+    catch {
+        return text;
+    }
+};
 export const bitbucketRequest = async (url, config, options = {}) => {
     assertAllowedApiUrl(url, config);
     const response = await fetch(url, {
         ...options,
-        headers: {
-            Authorization: getAuthHeader(),
-            Accept: 'application/json',
-            ...(options.body ? { 'Content-Type': 'application/json' } : {}),
-            ...options.headers,
-        },
+        headers: buildHeaders(options, 'application/json'),
     });
     const text = await response.text();
     let data = { raw: text };
@@ -50,5 +63,26 @@ export const bitbucketRequest = async (url, config, options = {}) => {
         throw new Error(`Bitbucket API ${response.status}: ${message}`);
     }
     return data;
+};
+export const bitbucketTextRequest = async (url, config, options = {}) => {
+    assertAllowedApiUrl(url, config);
+    const response = await fetch(url, {
+        ...options,
+        redirect: 'follow',
+        headers: buildHeaders(options, 'text/plain'),
+    });
+    const text = await response.text();
+    if (!response.ok) {
+        throw new Error(`Bitbucket API ${response.status}: ${parseErrorMessage(text, response.statusText)}`);
+    }
+    return text;
+};
+export const getCurrentUser = async (config) => {
+    const user = await bitbucketRequest(`${BITBUCKET_API_BASE}/user`, config);
+    return {
+        uuid: user.uuid,
+        displayName: user.display_name ?? user.nickname ?? 'Unknown',
+        nickname: user.nickname,
+    };
 };
 export { BITBUCKET_API_BASE };

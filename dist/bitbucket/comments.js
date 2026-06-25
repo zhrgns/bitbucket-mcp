@@ -49,3 +49,28 @@ export const resolvePullRequestComment = async (config, prId, commentId) => {
     await bitbucketRequest(`${repoPrefix}/pullrequests/${prId}/comments/${commentId}/resolve`, config, { method: 'POST' });
     return { prId, commentId, resolved: true };
 };
+export const addPullRequestComment = async (config, prId, payload) => {
+    const repoPrefix = getRepoApiPrefix(config.repository.workspace, config.repository.slug);
+    const body = {
+        content: { raw: payload.content },
+    };
+    if (payload.path) {
+        const line = payload.line ?? 1;
+        body.inline = {
+            path: payload.path,
+            from: line,
+            to: payload.toLine ?? line,
+        };
+    }
+    const comment = await bitbucketRequest(`${repoPrefix}/pullrequests/${prId}/comments`, config, {
+        method: 'POST',
+        body: JSON.stringify(body),
+    });
+    return {
+        prId,
+        commentId: comment.id,
+        inline: payload.path !== undefined,
+        path: payload.path,
+        line: payload.line,
+    };
+};

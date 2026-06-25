@@ -51,11 +51,12 @@ Optional `~/.config/bitbucket-mcp/config.json` — reviewer overrides only. Repo
 
 Users copy into `.cursor/skills/`:
 
-| Skill                 | Purpose                          |
-| --------------------- | -------------------------------- |
-| `bitbucket-pr`        | Open PR                          |
-| `bitbucket-pr-review` | Comment fix + resolve loop       |
-| `bitbucket-babysit`   | Full lifecycle until merge-ready |
+| Skill                        | Purpose                                  |
+| ---------------------------- | ---------------------------------------- |
+| `bitbucket-pr`               | Open PR                                  |
+| `bitbucket-pr-review`        | Comment fix + resolve loop               |
+| `bitbucket-pr-author-review` | Review, comment, approve/request-changes |
+| `bitbucket-babysit`          | Full lifecycle until merge-ready         |
 
 Do **not** remove `skills/` from `package.json` `files`. No `bitbucket-pre-pr` (rejected — empty value).
 
@@ -64,7 +65,7 @@ Do **not** remove `skills/` from `package.json` `files`. No `bitbucket-pre-pr` (
 ```
 src/types/      JSDoc on types — module + field docs
 src/config/     load.ts, paths.ts, auth.ts (not credentials.ts — editor hook)
-src/bitbucket/  api-client, pull-requests, reviewers, comments
+src/bitbucket/  api-client, pull-requests, reviewers, comments, review
 src/watch/      PrLifecycleWatch, modes: approval | review | babysit
 src/mcp/        parsers, register-tools, server
 src/hooks/      watch-hook.ts — npx via templates/hooks.json
@@ -95,8 +96,12 @@ src/hooks/      watch-hook.ts — npx via templates/hooks.json
 ## Roadmap (not done)
 
 - PR merge / decline tools
-- Pipeline / build status
 - `bitbucket-pre-pr` — dropped
+
+## Recently added
+
+- PR diff, review comments (inline + PR-level), approve, request changes
+- Build status + activity (duplicate-review guard)
 
 ## Never commit
 

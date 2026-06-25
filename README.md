@@ -64,6 +64,7 @@ Ready-made agent skills — copy into your project or `~/.cursor/skills/`:
 | ----- | -------- |
 | [`bitbucket-pr`](skills/bitbucket-pr/SKILL.md) | Open PR |
 | [`bitbucket-pr-review`](skills/bitbucket-pr-review/SKILL.md) | Fix & resolve review comments |
+| [`bitbucket-pr-author-review`](skills/bitbucket-pr-author-review/SKILL.md) | Review, comment, approve |
 | [`bitbucket-babysit`](skills/bitbucket-babysit/SKILL.md) | Full lifecycle until merge-ready |
 
 ```bash
@@ -83,6 +84,12 @@ From GitHub without clone: [skills/](https://github.com/zhrgns/bitbucket-mcp/tre
 | `get_pull_request`             | PR details + state                  |
 | `get_pull_request_approvals`   | Approval count + approvers          |
 | `get_pull_request_comments`    | Unresolved comment threads          |
+| `get_pull_request_diff`          | Unified PR diff (optional path)     |
+| `add_pull_request_comment`       | PR-level or inline review comment   |
+| `get_pull_request_build_status`  | CI/build statuses for PR            |
+| `get_pull_request_activity`      | Activity log + duplicate-review guard |
+| `approve_pull_request`           | Approve as authenticated user       |
+| `request_pull_request_changes`   | Request changes on PR               |
 | `resolve_pull_request_comment` | Resolve thread after fix            |
 | `start_pr_approval_watch`      | Approval-only polling               |
 | `start_pr_review_watch`        | Review-comment polling              |

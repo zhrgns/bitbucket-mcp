@@ -1,11 +1,12 @@
-import { getPullRequestComments, resolvePullRequestComment } from '../bitbucket/comments.js';
+import { addPullRequestComment, getPullRequestComments, resolvePullRequestComment } from '../bitbucket/comments.js';
 import { createPullRequest, getPullRequestApprovals, getPullRequestById, listPullRequests } from '../bitbucket/pull-requests.js';
+import { approvePullRequest, getPullRequestActivity, getPullRequestBuildStatus, getPullRequestDiff, requestPullRequestChanges } from '../bitbucket/review.js';
 import { getEffectiveDefaultReviewers } from '../bitbucket/reviewers.js';
 import { loadConfig } from '../config/load.js';
 import { clearWatch, loadWatch, scheduleNextCheck, startLifecycleWatch } from '../watch/store.js';
-import { parseCreatePullRequest, parseGetApprovals, parseGetComments, parseListPullRequests, parsePrId, parseResolveComment, parseStartLifecycleWatch, parseToolArgs } from './parsers.js';
+import { parseAddPullRequestComment, parseCreatePullRequest, parseGetApprovals, parseGetComments, parseGetPullRequestActivity, parseGetPullRequestDiff, parseListPullRequests, parsePrId, parseResolveComment, parseStartLifecycleWatch, parseToolArgs } from './parsers.js';
 import { jsonResult } from './result.js';
-import { createPullRequestSchema, emptyToolSchema, getPullRequestApprovalsSchema, getPullRequestCommentsSchema, getPullRequestSchema, listPullRequestsSchema, resolvePullRequestCommentSchema, startPrApprovalWatchSchema, startPrBabysitWatchSchema, startPrReviewWatchSchema } from './schemas.js';
+import { addPullRequestCommentSchema, approvePullRequestSchema, createPullRequestSchema, emptyToolSchema, getPullRequestActivitySchema, getPullRequestApprovalsSchema, getPullRequestBuildStatusSchema, getPullRequestCommentsSchema, getPullRequestDiffSchema, getPullRequestSchema, listPullRequestsSchema, requestPullRequestChangesSchema, resolvePullRequestCommentSchema, startPrApprovalWatchSchema, startPrBabysitWatchSchema, startPrReviewWatchSchema } from './schemas.js';
 export const registerTools = (server) => {
     server.registerTool('create_pull_request', {
         description: 'Create a Bitbucket Cloud pull request for the configured repository. Reviewers: effective default reviewers (author excluded) + optional extraUsernames from config.',
@@ -99,6 +100,65 @@ export const registerTools = (server) => {
         const config = loadConfig();
         const input = parseResolveComment(parseToolArgs(rawArgs));
         const result = await resolvePullRequestComment(config, input.prId, input.commentId);
+        return jsonResult(result);
+    });
+    server.registerTool('get_pull_request_diff', {
+        description: 'Get unified diff for a pull request. Optional path filter and maxChars truncation.',
+        inputSchema: getPullRequestDiffSchema
+    }, async (rawArgs) => {
+        const config = loadConfig();
+        const input = parseGetPullRequestDiff(parseToolArgs(rawArgs));
+        const diff = await getPullRequestDiff(config, input);
+        return jsonResult(diff);
+    });
+    server.registerTool('add_pull_request_comment', {
+        description: 'Add a PR-level or inline review comment. Omit path for PR-level; set path + line for inline.',
+        inputSchema: addPullRequestCommentSchema
+    }, async (rawArgs) => {
+        const config = loadConfig();
+        const input = parseAddPullRequestComment(parseToolArgs(rawArgs));
+        const result = await addPullRequestComment(config, input.prId, {
+            content: input.content,
+            path: input.path,
+            line: input.line,
+            toLine: input.toLine
+        });
+        return jsonResult(result);
+    });
+    server.registerTool('get_pull_request_build_status', {
+        description: 'List CI/build statuses for a pull request. Check hasFailed before approve.',
+        inputSchema: getPullRequestBuildStatusSchema
+    }, async (rawArgs) => {
+        const config = loadConfig();
+        const { prId } = parsePrId(parseToolArgs(rawArgs));
+        const status = await getPullRequestBuildStatus(config, prId);
+        return jsonResult(status);
+    });
+    server.registerTool('get_pull_request_activity', {
+        description: 'PR activity log with reviewAlreadyPostedForCommit to avoid duplicate AI reviews on the same commit.',
+        inputSchema: getPullRequestActivitySchema
+    }, async (rawArgs) => {
+        const config = loadConfig();
+        const input = parseGetPullRequestActivity(parseToolArgs(rawArgs));
+        const activity = await getPullRequestActivity(config, input.prId, input.limit);
+        return jsonResult(activity);
+    });
+    server.registerTool('approve_pull_request', {
+        description: 'Approve a pull request as the authenticated user. Call get_pull_request_build_status first — do not approve when CI is red.',
+        inputSchema: approvePullRequestSchema
+    }, async (rawArgs) => {
+        const config = loadConfig();
+        const { prId } = parsePrId(parseToolArgs(rawArgs));
+        const result = await approvePullRequest(config, prId);
+        return jsonResult(result);
+    });
+    server.registerTool('request_pull_request_changes', {
+        description: 'Request changes on a pull request as the authenticated user.',
+        inputSchema: requestPullRequestChangesSchema
+    }, async (rawArgs) => {
+        const config = loadConfig();
+        const { prId } = parsePrId(parseToolArgs(rawArgs));
+        const result = await requestPullRequestChanges(config, prId);
         return jsonResult(result);
     });
     server.registerTool('start_pr_approval_watch', {

@@ -1,7 +1,10 @@
 import type {
+  AddPullRequestCommentInput,
   CreatePullRequestInput,
   GetApprovalsInput,
   GetCommentsInput,
+  GetPullRequestActivityInput,
+  GetPullRequestDiffInput,
   ListPullRequestsInput,
   PrIdInput,
   ResolveCommentInput,
@@ -99,6 +102,60 @@ export const parseResolveComment = (
 ): ResolveCommentInput => ({
   prId: requirePositiveInt(args.prId, 'prId'),
   commentId: requirePositiveInt(args.commentId, 'commentId'),
+});
+
+export const parseGetPullRequestDiff = (
+  args: Record<string, unknown>
+): GetPullRequestDiffInput => {
+  const input: GetPullRequestDiffInput = {
+    prId: requirePositiveInt(args.prId, 'prId'),
+  };
+
+  if (args.path !== undefined) {
+    input.path = requireNonEmptyString(args.path, 'path');
+  }
+
+  if (args.maxChars !== undefined) {
+    input.maxChars = requirePositiveInt(args.maxChars, 'maxChars');
+  }
+
+  return input;
+};
+
+export const parseAddPullRequestComment = (
+  args: Record<string, unknown>
+): AddPullRequestCommentInput => {
+  const path =
+    args.path === undefined
+      ? undefined
+      : requireNonEmptyString(args.path, 'path');
+
+  const input: AddPullRequestCommentInput = {
+    prId: requirePositiveInt(args.prId, 'prId'),
+    content: requireNonEmptyString(args.content, 'content'),
+    path,
+  };
+
+  if (path) {
+    input.line = requirePositiveInt(args.line, 'line');
+    if (args.toLine !== undefined) {
+      input.toLine = requirePositiveInt(args.toLine, 'toLine');
+    }
+  } else if (args.line !== undefined) {
+    input.line = requirePositiveInt(args.line, 'line');
+  }
+
+  return input;
+};
+
+export const parseGetPullRequestActivity = (
+  args: Record<string, unknown>
+): GetPullRequestActivityInput => ({
+  prId: requirePositiveInt(args.prId, 'prId'),
+  limit:
+    args.limit === undefined
+      ? undefined
+      : requirePositiveInt(args.limit, 'limit'),
 });
 
 export const parseStartLifecycleWatch = (

@@ -32,6 +32,34 @@ const assertAllowedApiUrl = (url: string, config: McpConfig): void => {
   }
 };
 
+const buildHeaders = (
+  options: RequestInit,
+  accept: string
+): Record<string, string> => ({
+  Authorization: getAuthHeader(),
+  Accept: accept,
+  ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+  ...(options.headers as Record<string, string> | undefined),
+});
+
+const parseErrorMessage = (
+  text: string,
+  statusText: string
+): string => {
+  if (!text) {
+    return statusText;
+  }
+  try {
+    const data = JSON.parse(text) as {
+      error?: { message?: string };
+      message?: string;
+    };
+    return data?.error?.message || data?.message || text;
+  } catch {
+    return text;
+  }
+};
+
 export const bitbucketRequest = async <T>(
   url: string,
   config: McpConfig,
@@ -41,12 +69,7 @@ export const bitbucketRequest = async <T>(
 
   const response = await fetch(url, {
     ...options,
-    headers: {
-      Authorization: getAuthHeader(),
-      Accept: 'application/json',
-      ...(options.body ? { 'Content-Type': 'application/json' } : {}),
-      ...options.headers,
-    },
+    headers: buildHeaders(options, 'application/json'),
   });
 
   const text = await response.text();
@@ -75,6 +98,46 @@ export const bitbucketRequest = async <T>(
   }
 
   return data as T;
+};
+
+export const bitbucketTextRequest = async (
+  url: string,
+  config: McpConfig,
+  options: RequestInit = {}
+): Promise<string> => {
+  assertAllowedApiUrl(url, config);
+
+  const response = await fetch(url, {
+    ...options,
+    redirect: 'follow',
+    headers: buildHeaders(options, 'text/plain'),
+  });
+
+  const text = await response.text();
+
+  if (!response.ok) {
+    throw new Error(
+      `Bitbucket API ${response.status}: ${parseErrorMessage(text, response.statusText)}`
+    );
+  }
+
+  return text;
+};
+
+export const getCurrentUser = async (
+  config: McpConfig
+): Promise<{ uuid: string; displayName: string; nickname?: string }> => {
+  const user = await bitbucketRequest<{
+    uuid: string;
+    display_name?: string;
+    nickname?: string;
+  }>(`${BITBUCKET_API_BASE}/user`, config);
+
+  return {
+    uuid: user.uuid,
+    displayName: user.display_name ?? user.nickname ?? 'Unknown',
+    nickname: user.nickname,
+  };
 };
 
 export { BITBUCKET_API_BASE };

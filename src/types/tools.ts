@@ -43,3 +43,25 @@ export type GetCommentsInput = {
   prId: number;
   unresolvedOnly?: boolean;
 };
+
+/** Input for `get_pull_request_diff`. */
+export type GetPullRequestDiffInput = {
+  prId: number;
+  path?: string;
+  maxChars?: number;
+};
+
+/** Input for `add_pull_request_comment`. */
+export type AddPullRequestCommentInput = {
+  prId: number;
+  content: string;
+  path?: string;
+  line?: number;
+  toLine?: number;
+};
+
+/** Input for `get_pull_request_activity`. */
+export type GetPullRequestActivityInput = {
+  prId: number;
+  limit?: number;
+};

@@ -1,5 +1,6 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import {
+  addPullRequestComment,
   getPullRequestComments,
   resolvePullRequestComment
 } from '../bitbucket/comments.js';
@@ -9,6 +10,13 @@ import {
   getPullRequestById,
   listPullRequests
 } from '../bitbucket/pull-requests.js';
+import {
+  approvePullRequest,
+  getPullRequestActivity,
+  getPullRequestBuildStatus,
+  getPullRequestDiff,
+  requestPullRequestChanges
+} from '../bitbucket/review.js';
 import { getEffectiveDefaultReviewers } from '../bitbucket/reviewers.js';
 import { loadConfig } from '../config/load.js';
 import {
@@ -18,9 +26,12 @@ import {
   startLifecycleWatch
 } from '../watch/store.js';
 import {
+  parseAddPullRequestComment,
   parseCreatePullRequest,
   parseGetApprovals,
   parseGetComments,
+  parseGetPullRequestActivity,
+  parseGetPullRequestDiff,
   parseListPullRequests,
   parsePrId,
   parseResolveComment,
@@ -29,12 +40,18 @@ import {
 } from './parsers.js';
 import { jsonResult } from './result.js';
 import {
+  addPullRequestCommentSchema,
+  approvePullRequestSchema,
   createPullRequestSchema,
   emptyToolSchema,
+  getPullRequestActivitySchema,
   getPullRequestApprovalsSchema,
+  getPullRequestBuildStatusSchema,
   getPullRequestCommentsSchema,
+  getPullRequestDiffSchema,
   getPullRequestSchema,
   listPullRequestsSchema,
+  requestPullRequestChangesSchema,
   resolvePullRequestCommentSchema,
   startPrApprovalWatchSchema,
   startPrBabysitWatchSchema,
@@ -187,6 +204,104 @@ export const registerTools = (server: McpServer): void => {
         input.prId,
         input.commentId
       );
+      return jsonResult(result);
+    }
+  );
+
+  server.registerTool(
+    'get_pull_request_diff',
+    {
+      description:
+        'Get unified diff for a pull request. Optional path filter and maxChars truncation.',
+      inputSchema: getPullRequestDiffSchema
+    },
+    async (rawArgs?: unknown) => {
+      const config = loadConfig();
+      const input = parseGetPullRequestDiff(parseToolArgs(rawArgs));
+      const diff = await getPullRequestDiff(config, input);
+      return jsonResult(diff);
+    }
+  );
+
+  server.registerTool(
+    'add_pull_request_comment',
+    {
+      description:
+        'Add a PR-level or inline review comment. Omit path for PR-level; set path + line for inline.',
+      inputSchema: addPullRequestCommentSchema
+    },
+    async (rawArgs?: unknown) => {
+      const config = loadConfig();
+      const input = parseAddPullRequestComment(parseToolArgs(rawArgs));
+      const result = await addPullRequestComment(config, input.prId, {
+        content: input.content,
+        path: input.path,
+        line: input.line,
+        toLine: input.toLine
+      });
+      return jsonResult(result);
+    }
+  );
+
+  server.registerTool(
+    'get_pull_request_build_status',
+    {
+      description:
+        'List CI/build statuses for a pull request. Check hasFailed before approve.',
+      inputSchema: getPullRequestBuildStatusSchema
+    },
+    async (rawArgs?: unknown) => {
+      const config = loadConfig();
+      const { prId } = parsePrId(parseToolArgs(rawArgs));
+      const status = await getPullRequestBuildStatus(config, prId);
+      return jsonResult(status);
+    }
+  );
+
+  server.registerTool(
+    'get_pull_request_activity',
+    {
+      description:
+        'PR activity log with reviewAlreadyPostedForCommit to avoid duplicate AI reviews on the same commit.',
+      inputSchema: getPullRequestActivitySchema
+    },
+    async (rawArgs?: unknown) => {
+      const config = loadConfig();
+      const input = parseGetPullRequestActivity(parseToolArgs(rawArgs));
+      const activity = await getPullRequestActivity(
+        config,
+        input.prId,
+        input.limit
+      );
+      return jsonResult(activity);
+    }
+  );
+
+  server.registerTool(
+    'approve_pull_request',
+    {
+      description:
+        'Approve a pull request as the authenticated user. Call get_pull_request_build_status first — do not approve when CI is red.',
+      inputSchema: approvePullRequestSchema
+    },
+    async (rawArgs?: unknown) => {
+      const config = loadConfig();
+      const { prId } = parsePrId(parseToolArgs(rawArgs));
+      const result = await approvePullRequest(config, prId);
+      return jsonResult(result);
+    }
+  );
+
+  server.registerTool(
+    'request_pull_request_changes',
+    {
+      description: 'Request changes on a pull request as the authenticated user.',
+      inputSchema: requestPullRequestChangesSchema
+    },
+    async (rawArgs?: unknown) => {
+      const config = loadConfig();
+      const { prId } = parsePrId(parseToolArgs(rawArgs));
+      const result = await requestPullRequestChanges(config, prId);
       return jsonResult(result);
     }
   );

@@ -61,6 +61,57 @@ export const resolvePullRequestCommentSchema = {
         .positive()
         .describe('Thread root comment id'),
 };
+export const getPullRequestDiffSchema = {
+    prId: positiveInt,
+    path: z
+        .string()
+        .optional()
+        .describe('Limit diff to a single file path'),
+    maxChars: z.coerce
+        .number()
+        .int()
+        .positive()
+        .optional()
+        .describe('Max diff characters to return (default 120000)'),
+};
+export const addPullRequestCommentSchema = {
+    prId: positiveInt,
+    content: z.string().min(1).describe('Comment body (markdown)'),
+    path: z
+        .string()
+        .optional()
+        .describe('File path for inline comment — omit for PR-level comment'),
+    line: z.coerce
+        .number()
+        .int()
+        .positive()
+        .optional()
+        .describe('Line number for inline comment (required when path is set)'),
+    toLine: z.coerce
+        .number()
+        .int()
+        .positive()
+        .optional()
+        .describe('End line for multi-line inline comment'),
+};
+export const getPullRequestBuildStatusSchema = {
+    prId: positiveInt,
+};
+export const getPullRequestActivitySchema = {
+    prId: positiveInt,
+    limit: z.coerce
+        .number()
+        .int()
+        .positive()
+        .optional()
+        .describe('Max activity entries (default 50)'),
+};
+export const approvePullRequestSchema = {
+    prId: positiveInt,
+};
+export const requestPullRequestChangesSchema = {
+    prId: positiveInt,
+};
 export const startPrApprovalWatchSchema = {
     ...lifecycleWatchBase,
     jiraKey: z.string().min(1).describe('Jira issue key'),
