@@ -1,19 +1,18 @@
 #!/usr/bin/env node
 import { loadWatch } from '../watch/store.js';
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const approvalSteps = (watch) => [
     '1. `get_pull_request_approvals` — prId or source branch',
     '2. If approvalCount >= 1:',
     ...(watch.jiraKey
         ? [
-            `   - Jira MCP: transition ${watch.jiraKey} to "${watch.jiraTransitionName}"`,
+            `   - Jira MCP: transition ${watch.jiraKey} to "${watch.jiraTransitionName}"`
         ]
         : []),
     '   - `clear_pr_approval_watch`',
     `   - Notify user: approved, PR: ${watch.prUrl}`,
     '3. If no approval:',
     '   - `schedule_pr_approval_recheck`',
-    '   - Notify briefly: no approval yet',
+    '   - Notify briefly: no approval yet'
 ];
 const reviewSteps = (watch) => [
     `1. \`get_pull_request\` prId ${watch.prId} — if state is MERGED/DECLINED/SUPERSEDED:`,
@@ -25,7 +24,7 @@ const reviewSteps = (watch) => [
     '   - `resolve_pull_request_comment` with thread root commentId',
     '4. If no unresolved comments:',
     '   - `schedule_pr_approval_recheck`',
-    '   - Notify briefly: no open review threads',
+    '   - Notify briefly: no open review threads'
 ];
 const babysitSteps = (watch) => [
     `1. \`get_pull_request\` prId ${watch.prId} — if terminal state, clear watch and notify`,
@@ -33,11 +32,11 @@ const babysitSteps = (watch) => [
     '3. `get_pull_request_approvals` — when approvalCount >= 1 AND unresolvedCount is 0:',
     ...(watch.jiraKey
         ? [
-            `   - Jira MCP: transition ${watch.jiraKey} to "${watch.jiraTransitionName}"`,
+            `   - Jira MCP: transition ${watch.jiraKey} to "${watch.jiraTransitionName}"`
         ]
         : []),
     '   - `clear_pr_approval_watch`, notify user PR is merge-ready',
-    '4. Otherwise `schedule_pr_approval_recheck`',
+    '4. Otherwise `schedule_pr_approval_recheck`'
 ];
 const buildFollowup = (watch) => {
     const header = `PR ${watch.mode} watch (automatic) — PR #${watch.prId}`;
@@ -54,22 +53,38 @@ const buildFollowup = (watch) => {
         ...steps,
         '',
         'Use bitbucket-mcp tools only — no shell/curl for Bitbucket.',
-        'Do not clear watch until exit conditions above are met.',
+        'Do not clear watch until exit conditions above are met.'
     ]
         .filter((line) => line !== '')
         .join('\n');
 };
+const readStdin = async () => {
+    let data = '';
+    for await (const chunk of process.stdin)
+        data += chunk;
+    return data;
+};
 const main = async () => {
+    let status = '';
+    try {
+        const raw = await readStdin();
+        if (raw.trim())
+            status = JSON.parse(raw).status ?? '';
+    }
+    catch { }
+    if (status === 'aborted') {
+        return;
+    }
     const watch = loadWatch();
     if (!watch) {
         return;
     }
-    const waitMs = Math.max(0, watch.nextCheckAt - Date.now());
-    if (waitMs > 0) {
-        await sleep(waitMs);
+    // 2. Vakti gelmediyse sessizce çık — sleep yok, döngü yok.
+    if (Date.now() < watch.nextCheckAt) {
+        return;
     }
     process.stdout.write(JSON.stringify({
-        followup_message: buildFollowup(watch),
+        followup_message: buildFollowup(watch)
     }));
 };
 main().catch((error) => {

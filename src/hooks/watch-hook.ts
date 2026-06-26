@@ -2,22 +2,19 @@
 import type { PrLifecycleWatch } from '../types/watch.js';
 import { loadWatch } from '../watch/store.js';
 
-const sleep = (ms: number): Promise<void> =>
-  new Promise((resolve) => setTimeout(resolve, ms));
-
 const approvalSteps = (watch: PrLifecycleWatch): string[] => [
   '1. `get_pull_request_approvals` — prId or source branch',
   '2. If approvalCount >= 1:',
   ...(watch.jiraKey
     ? [
-        `   - Jira MCP: transition ${watch.jiraKey} to "${watch.jiraTransitionName}"`,
+        `   - Jira MCP: transition ${watch.jiraKey} to "${watch.jiraTransitionName}"`
       ]
     : []),
   '   - `clear_pr_approval_watch`',
   `   - Notify user: approved, PR: ${watch.prUrl}`,
   '3. If no approval:',
   '   - `schedule_pr_approval_recheck`',
-  '   - Notify briefly: no approval yet',
+  '   - Notify briefly: no approval yet'
 ];
 
 const reviewSteps = (watch: PrLifecycleWatch): string[] => [
@@ -30,7 +27,7 @@ const reviewSteps = (watch: PrLifecycleWatch): string[] => [
   '   - `resolve_pull_request_comment` with thread root commentId',
   '4. If no unresolved comments:',
   '   - `schedule_pr_approval_recheck`',
-  '   - Notify briefly: no open review threads',
+  '   - Notify briefly: no open review threads'
 ];
 
 const babysitSteps = (watch: PrLifecycleWatch): string[] => [
@@ -39,11 +36,11 @@ const babysitSteps = (watch: PrLifecycleWatch): string[] => [
   '3. `get_pull_request_approvals` — when approvalCount >= 1 AND unresolvedCount is 0:',
   ...(watch.jiraKey
     ? [
-        `   - Jira MCP: transition ${watch.jiraKey} to "${watch.jiraTransitionName}"`,
+        `   - Jira MCP: transition ${watch.jiraKey} to "${watch.jiraTransitionName}"`
       ]
     : []),
   '   - `clear_pr_approval_watch`, notify user PR is merge-ready',
-  '4. Otherwise `schedule_pr_approval_recheck`',
+  '4. Otherwise `schedule_pr_approval_recheck`'
 ];
 
 const buildFollowup = (watch: PrLifecycleWatch): string => {
@@ -52,8 +49,8 @@ const buildFollowup = (watch: PrLifecycleWatch): string => {
     watch.mode === 'approval'
       ? approvalSteps(watch)
       : watch.mode === 'review'
-        ? reviewSteps(watch)
-        : babysitSteps(watch);
+      ? reviewSteps(watch)
+      : babysitSteps(watch);
 
   return [
     header,
@@ -63,26 +60,40 @@ const buildFollowup = (watch: PrLifecycleWatch): string => {
     ...steps,
     '',
     'Use bitbucket-mcp tools only — no shell/curl for Bitbucket.',
-    'Do not clear watch until exit conditions above are met.',
+    'Do not clear watch until exit conditions above are met.'
   ]
     .filter((line) => line !== '')
     .join('\n');
 };
 
+const readStdin = async (): Promise<string> => {
+  let data = '';
+  for await (const chunk of process.stdin) data += chunk;
+  return data;
+};
+
 const main = async (): Promise<void> => {
+  let status = '';
+  try {
+    const raw = await readStdin();
+    if (raw.trim()) status = (JSON.parse(raw).status as string) ?? '';
+  } catch {}
+  if (status === 'aborted') {
+    return;
+  }
+
   const watch = loadWatch();
   if (!watch) {
     return;
   }
 
-  const waitMs = Math.max(0, watch.nextCheckAt - Date.now());
-  if (waitMs > 0) {
-    await sleep(waitMs);
+  if (Date.now() < watch.nextCheckAt) {
+    return;
   }
 
   process.stdout.write(
     JSON.stringify({
-      followup_message: buildFollowup(watch),
+      followup_message: buildFollowup(watch)
     })
   );
 };

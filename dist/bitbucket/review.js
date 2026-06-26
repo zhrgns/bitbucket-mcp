@@ -1,195 +1,256 @@
 import { getRepoApiPrefix } from '../config/paths.js';
-import { bitbucketRequest, bitbucketTextRequest, getCurrentUser, } from './api-client.js';
+import {
+  bitbucketRequest,
+  bitbucketTextRequest,
+  getCurrentUser
+} from './api-client.js';
 import { getPullRequestById } from './pull-requests.js';
 const DEFAULT_DIFF_MAX_CHARS = 120_000;
 const FAILED_BUILD_STATES = new Set(['FAILED', 'STOPPED']);
 const IN_PROGRESS_BUILD_STATES = new Set(['INPROGRESS', 'PENDING']);
-const requireCommitHashes = (pr) => {
-    const source = pr.source?.commit?.hash;
-    const destination = pr.destination?.commit?.hash;
-    if (!source || !destination) {
-        throw new Error('Pull request is missing source or destination commit hash');
-    }
-    return { source, destination };
-};
 const fetchAllPages = async (initialUrl, config, maxItems) => {
-    const items = [];
-    let nextUrl = initialUrl;
-    while (nextUrl) {
-        const page = await bitbucketRequest(nextUrl, config);
-        items.push(...(page.values ?? []));
-        if (maxItems !== undefined && items.length >= maxItems) {
-            return items.slice(0, maxItems);
-        }
-        nextUrl = page.next;
+  const items = [];
+  let nextUrl = initialUrl;
+  while (nextUrl) {
+    const page = await bitbucketRequest(nextUrl, config);
+    items.push(...(page.values ?? []));
+    if (maxItems !== undefined && items.length >= maxItems) {
+      return items.slice(0, maxItems);
     }
-    return items;
+    nextUrl = page.next;
+  }
+  return items;
+};
+const buildPrDiffUrl = (repoPrefix, prId, path) => {
+  const params = new URLSearchParams({ topic: 'true' });
+  if (path) {
+    params.set('path', path);
+  }
+  return `${repoPrefix}/pullrequests/${prId}/diff?${params.toString()}`;
+};
+const extractDiffstatPath = (entry) => entry.new?.path ?? entry.old?.path;
+const getPullRequestChangedFiles = async (config, repoPrefix, prId) => {
+  const rawEntries = await fetchAllPages(
+    `${repoPrefix}/pullrequests/${prId}/diffstat?topic=true&pagelen=100`,
+    config
+  );
+  return rawEntries
+    .map((item) => extractDiffstatPath(item))
+    .filter((path) => Boolean(path));
 };
 export const getPullRequestDiff = async (config, input) => {
-    const pr = await getPullRequestById(config, input.prId);
-    const { source, destination } = requireCommitHashes(pr);
-    const repoPrefix = getRepoApiPrefix(config.repository.workspace, config.repository.slug);
-    let url = `${repoPrefix}/diff/${destination}..${source}`;
-    if (input.path) {
-        url += `?path=${encodeURIComponent(input.path)}`;
-    }
-    const maxChars = input.maxChars ?? DEFAULT_DIFF_MAX_CHARS;
-    const rawDiff = await bitbucketTextRequest(url, config);
-    const truncated = rawDiff.length > maxChars;
-    const diff = truncated ? rawDiff.slice(0, maxChars) : rawDiff;
-    return {
-        prId: input.prId,
-        sourceCommitHash: source,
-        destinationCommitHash: destination,
-        path: input.path,
-        diff,
-        truncated,
-        charCount: diff.length,
-    };
+  const pr = await getPullRequestById(config, input.prId);
+  const repoPrefix = getRepoApiPrefix(
+    config.repository.workspace,
+    config.repository.slug
+  );
+  const [changedFiles, rawDiff] = await Promise.all([
+    getPullRequestChangedFiles(config, repoPrefix, input.prId),
+    bitbucketTextRequest(
+      buildPrDiffUrl(repoPrefix, input.prId, input.path),
+      config
+    )
+  ]);
+  const maxChars = input.maxChars ?? DEFAULT_DIFF_MAX_CHARS;
+  const truncated = rawDiff.length > maxChars;
+  const diff = truncated ? rawDiff.slice(0, maxChars) : rawDiff;
+  return {
+    prId: input.prId,
+    sourceCommitHash: pr.source?.commit?.hash,
+    destinationCommitHash: pr.destination?.commit?.hash,
+    sourceBranch: pr.source?.branch?.name,
+    destinationBranch: pr.destination?.branch?.name,
+    changedFiles,
+    path: input.path,
+    diff,
+    truncated,
+    charCount: diff.length
+  };
 };
 export const approvePullRequest = async (config, prId) => {
-    const repoPrefix = getRepoApiPrefix(config.repository.workspace, config.repository.slug);
-    const participant = await bitbucketRequest(`${repoPrefix}/pullrequests/${prId}/approve`, config, { method: 'POST' });
-    return {
-        prId,
-        state: participant.state ?? 'approved',
-        approved: participant.approved === true,
-        participatedOn: participant.participated_on,
-    };
+  const repoPrefix = getRepoApiPrefix(
+    config.repository.workspace,
+    config.repository.slug
+  );
+  const participant = await bitbucketRequest(
+    `${repoPrefix}/pullrequests/${prId}/approve`,
+    config,
+    { method: 'POST' }
+  );
+  return {
+    prId,
+    state: participant.state ?? 'approved',
+    approved: participant.approved === true,
+    participatedOn: participant.participated_on
+  };
 };
 export const requestPullRequestChanges = async (config, prId) => {
-    const repoPrefix = getRepoApiPrefix(config.repository.workspace, config.repository.slug);
-    const participant = await bitbucketRequest(`${repoPrefix}/pullrequests/${prId}/request-changes`, config, { method: 'POST' });
-    return {
-        prId,
-        state: participant.state ?? 'changes_requested',
-        approved: participant.approved === true,
-        participatedOn: participant.participated_on,
-    };
+  const repoPrefix = getRepoApiPrefix(
+    config.repository.workspace,
+    config.repository.slug
+  );
+  const participant = await bitbucketRequest(
+    `${repoPrefix}/pullrequests/${prId}/request-changes`,
+    config,
+    { method: 'POST' }
+  );
+  return {
+    prId,
+    state: participant.state ?? 'changes_requested',
+    approved: participant.approved === true,
+    participatedOn: participant.participated_on
+  };
 };
 const mapBuildStatus = (status) => ({
-    key: status.key ?? '',
-    name: status.name ?? status.key ?? '',
-    state: status.state ?? 'UNKNOWN',
-    description: status.description,
-    url: status.url,
-    refname: status.refname,
-    createdOn: status.created_on,
-    updatedOn: status.updated_on,
+  key: status.key ?? '',
+  name: status.name ?? status.key ?? '',
+  state: status.state ?? 'UNKNOWN',
+  description: status.description,
+  url: status.url,
+  refname: status.refname,
+  createdOn: status.created_on,
+  updatedOn: status.updated_on
 });
 export const getPullRequestBuildStatus = async (config, prId) => {
-    const pr = await getPullRequestById(config, prId);
-    const repoPrefix = getRepoApiPrefix(config.repository.workspace, config.repository.slug);
-    const rawStatuses = await fetchAllPages(`${repoPrefix}/pullrequests/${prId}/statuses?pagelen=100`, config);
-    const statuses = rawStatuses.map((item) => mapBuildStatus(item));
-    const hasFailed = statuses.some((s) => FAILED_BUILD_STATES.has(s.state));
-    const hasInProgress = statuses.some((s) => IN_PROGRESS_BUILD_STATES.has(s.state));
-    const allPassed = statuses.length > 0 &&
-        statuses.every((s) => s.state === 'SUCCESSFUL') &&
-        !hasFailed &&
-        !hasInProgress;
-    return {
-        prId,
-        sourceCommitHash: pr.source?.commit?.hash,
-        allPassed,
-        hasFailed,
-        hasInProgress,
-        statuses,
-    };
+  const pr = await getPullRequestById(config, prId);
+  const repoPrefix = getRepoApiPrefix(
+    config.repository.workspace,
+    config.repository.slug
+  );
+  const rawStatuses = await fetchAllPages(
+    `${repoPrefix}/pullrequests/${prId}/statuses?pagelen=100`,
+    config
+  );
+  const statuses = rawStatuses.map((item) => mapBuildStatus(item));
+  const hasFailed = statuses.some((s) => FAILED_BUILD_STATES.has(s.state));
+  const hasInProgress = statuses.some((s) =>
+    IN_PROGRESS_BUILD_STATES.has(s.state)
+  );
+  const allPassed =
+    statuses.length > 0 &&
+    statuses.every((s) => s.state === 'SUCCESSFUL') &&
+    !hasFailed &&
+    !hasInProgress;
+  return {
+    prId,
+    sourceCommitHash: pr.source?.commit?.hash,
+    allPassed,
+    hasFailed,
+    hasInProgress,
+    statuses
+  };
 };
 const mapActivityItem = (item) => {
-    if (item.comment) {
-        return {
-            type: 'comment',
-            date: item.comment.created_on,
-            author: item.comment.user?.display_name ??
-                item.comment.user?.nickname ??
-                undefined,
-            authorUuid: item.comment.user?.uuid,
-            content: item.comment.content?.raw?.trim(),
-            commentId: item.comment.id,
-            path: item.comment.inline?.path,
-            line: item.comment.inline?.from,
-        };
-    }
-    if (item.approval) {
-        return {
-            type: 'approval',
-            date: item.approval.date,
-            author: item.approval.user?.display_name ??
-                item.approval.user?.nickname ??
-                undefined,
-            authorUuid: item.approval.user?.uuid,
-        };
-    }
-    if (item.changes_requested) {
-        return {
-            type: 'changes_requested',
-            date: item.changes_requested.date,
-            author: item.changes_requested.user?.display_name ??
-                item.changes_requested.user?.nickname ??
-                undefined,
-            authorUuid: item.changes_requested.user?.uuid,
-        };
-    }
-    if (item.update) {
-        return {
-            type: 'update',
-            date: item.update.date,
-            author: item.update.author?.display_name ??
-                item.update.author?.nickname ??
-                undefined,
-            authorUuid: item.update.author?.uuid,
-            sourceCommitHash: item.update.source?.commit?.hash,
-        };
-    }
-    return { type: 'other' };
+  if (item.comment) {
+    return {
+      type: 'comment',
+      date: item.comment.created_on,
+      author:
+        item.comment.user?.display_name ??
+        item.comment.user?.nickname ??
+        undefined,
+      authorUuid: item.comment.user?.uuid,
+      content: item.comment.content?.raw?.trim(),
+      commentId: item.comment.id,
+      path: item.comment.inline?.path,
+      line: item.comment.inline?.from
+    };
+  }
+  if (item.approval) {
+    return {
+      type: 'approval',
+      date: item.approval.date,
+      author:
+        item.approval.user?.display_name ??
+        item.approval.user?.nickname ??
+        undefined,
+      authorUuid: item.approval.user?.uuid
+    };
+  }
+  if (item.changes_requested) {
+    return {
+      type: 'changes_requested',
+      date: item.changes_requested.date,
+      author:
+        item.changes_requested.user?.display_name ??
+        item.changes_requested.user?.nickname ??
+        undefined,
+      authorUuid: item.changes_requested.user?.uuid
+    };
+  }
+  if (item.update) {
+    return {
+      type: 'update',
+      date: item.update.date,
+      author:
+        item.update.author?.display_name ??
+        item.update.author?.nickname ??
+        undefined,
+      authorUuid: item.update.author?.uuid,
+      sourceCommitHash: item.update.source?.commit?.hash
+    };
+  }
+  return { type: 'other' };
 };
 const countCommentsSince = (entries, since, authorUuid) => {
-    const sinceMs = since ? Date.parse(since) : 0;
-    let total = 0;
-    let byCurrentUser = 0;
-    for (const entry of entries) {
-        if (entry.type !== 'comment' || !entry.date) {
-            continue;
-        }
-        if (Date.parse(entry.date) < sinceMs) {
-            continue;
-        }
-        total += 1;
-        if (authorUuid && entry.authorUuid === authorUuid) {
-            byCurrentUser += 1;
-        }
+  const sinceMs = since ? Date.parse(since) : 0;
+  let total = 0;
+  let byCurrentUser = 0;
+  for (const entry of entries) {
+    if (entry.type !== 'comment' || !entry.date) {
+      continue;
     }
-    return { total, byCurrentUser };
+    if (Date.parse(entry.date) < sinceMs) {
+      continue;
+    }
+    total += 1;
+    if (authorUuid && entry.authorUuid === authorUuid) {
+      byCurrentUser += 1;
+    }
+  }
+  return { total, byCurrentUser };
 };
 export const getPullRequestActivity = async (config, prId, limit = 50) => {
-    const pr = await getPullRequestById(config, prId);
-    const sourceCommitHash = pr.source?.commit?.hash;
-    const destinationCommitHash = pr.destination?.commit?.hash;
-    const repoPrefix = getRepoApiPrefix(config.repository.workspace, config.repository.slug);
-    const currentUser = await getCurrentUser(config);
-    const rawItems = await fetchAllPages(`${repoPrefix}/pullrequests/${prId}/activity?pagelen=100`, config, limit);
-    const entries = rawItems.map((item) => mapActivityItem(item));
-    const updatesForCommit = entries.filter((entry) => entry.type === 'update' && entry.sourceCommitHash === sourceCommitHash);
-    const latestUpdateForCommit = updatesForCommit.reduce((latest, entry) => {
-        if (!entry.date) {
-            return latest;
-        }
-        if (!latest?.date || Date.parse(entry.date) > Date.parse(latest.date)) {
-            return entry;
-        }
-        return latest;
-    }, undefined);
-    const commentCounts = countCommentsSince(entries, latestUpdateForCommit?.date, currentUser.uuid);
-    return {
-        prId,
-        sourceCommitHash,
-        destinationCommitHash,
-        currentUserUuid: currentUser.uuid,
-        commentsOnCurrentCommit: commentCounts.total,
-        currentUserCommentsOnCurrentCommit: commentCounts.byCurrentUser,
-        reviewAlreadyPostedForCommit: commentCounts.byCurrentUser > 0,
-        entries,
-    };
+  const pr = await getPullRequestById(config, prId);
+  const sourceCommitHash = pr.source?.commit?.hash;
+  const destinationCommitHash = pr.destination?.commit?.hash;
+  const repoPrefix = getRepoApiPrefix(
+    config.repository.workspace,
+    config.repository.slug
+  );
+  const currentUser = await getCurrentUser(config);
+  const rawItems = await fetchAllPages(
+    `${repoPrefix}/pullrequests/${prId}/activity?pagelen=100`,
+    config,
+    limit
+  );
+  const entries = rawItems.map((item) => mapActivityItem(item));
+  const updatesForCommit = entries.filter(
+    (entry) =>
+      entry.type === 'update' && entry.sourceCommitHash === sourceCommitHash
+  );
+  const latestUpdateForCommit = updatesForCommit.reduce((latest, entry) => {
+    if (!entry.date) {
+      return latest;
+    }
+    if (!latest?.date || Date.parse(entry.date) > Date.parse(latest.date)) {
+      return entry;
+    }
+    return latest;
+  }, undefined);
+  const commentCounts = countCommentsSince(
+    entries,
+    latestUpdateForCommit?.date,
+    currentUser.uuid
+  );
+  return {
+    prId,
+    sourceCommitHash,
+    destinationCommitHash,
+    currentUserUuid: currentUser.uuid,
+    commentsOnCurrentCommit: commentCounts.total,
+    currentUserCommentsOnCurrentCommit: commentCounts.byCurrentUser,
+    reviewAlreadyPostedForCommit: commentCounts.byCurrentUser > 0,
+    entries
+  };
 };
